@@ -1,17 +1,18 @@
 {
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "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",
+    "ANTHROPIC_AUTH_TOKEN": "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",
     "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "openai/gpt-oss-120b:free",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "openai/gpt-oss-120b:free",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "openai/gpt-oss-120b:free"
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "openrouter/free",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "openrouter/free",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "openrouter/free"
   },
   "permissions": {
     "allow": [
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(npx eas-cli *)"
+      "Bash(npx eas-cli *)",
+      "Bash(EAS_NO_VCS=1 npx eas-cli *)"
     ]
   }
 }

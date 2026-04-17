@@ -28,8 +28,6 @@
       },
       "package": "com.sivaprakashamp.tractorbill",
       "permissions": [
-        "NOTIFICATIONS",
-        "VIBRATE",
         "android.permission.NOTIFICATIONS",
         "android.permission.VIBRATE",
         "android.permission.READ_CONTACTS",
@@ -69,8 +67,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "859c4066-b228-4d40-8ecd-cc273f709384"
+        "projectId": "a901fb96-a72d-43b3-9b93-945aa9f2eee4"
+      },
+      "router": {
+        "origin": "https://replit.com/"
       }
-    }
+    },
+    "owner": "sivaprakasham"
   }
 }

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "android": {
+      "package": "com.tractorbill.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ba390f38-cdf9-4546-9763-937c03a875e6"
+      }
+    }
+  }
+}
