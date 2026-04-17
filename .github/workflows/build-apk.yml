@@ -5,12 +5,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./artifacts/tiller-bill
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Flatten Project Structure
+        run: |
+          cp -a artifacts/tiller-bill/. ./
+          rm -rf artifacts
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -39,4 +41,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Tractor-Bill-APK
-          path: artifacts/tiller-bill/android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
