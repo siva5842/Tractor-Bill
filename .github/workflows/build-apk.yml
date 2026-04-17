@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: artifacts/tiller-bill
+        working-directory: ./artifacts/tiller-bill
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
