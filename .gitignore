@@ -48,6 +48,11 @@ Thumbs.db
 android/
 ios/
 
+# Expo
+.expo
+.expo-shared
+dist/
+
 # Replit
 .cache/
 .local/

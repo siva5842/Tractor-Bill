@@ -28,13 +28,33 @@ interface Props {
 }
 
 function parseDateStr(dateStr: string): Date | null {
-  const parts = dateStr.split("/");
-  if (parts.length !== 3) return null;
-  const d = new Date(
-    parseInt(parts[2]),
-    parseInt(parts[1]) - 1,
-    parseInt(parts[0])
-  );
+  const cleaned = dateStr.replace(/\s+/g, "").replace(/-/g, "");
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits.length < 6 || digits.length > 8) return null;
+  let day: number, month: number, year: number;
+  if (digits.length === 6) {
+    day = parseInt(digits.slice(0, 2));
+    month = parseInt(digits.slice(2, 4));
+    year = parseInt("20" + digits.slice(4, 6));
+  } else if (digits.length === 7) {
+    day = parseInt(digits.slice(0, 1));
+    month = parseInt(digits.slice(1, 3));
+    year = parseInt("20" + digits.slice(3, 7));
+  } else {
+    day = parseInt(digits.slice(0, 2));
+    month = parseInt(digits.slice(2, 4));
+    year = parseInt(digits.slice(4, 8));
+  }
+  if (
+    day < 1 ||
+    day > 31 ||
+    month < 1 ||
+    month > 12 ||
+    year < 2000 ||
+    year > 2100
+  )
+    return null;
+  const d = new Date(year, month - 1, day);
   if (isNaN(d.getTime())) return null;
   return d;
 }
@@ -59,6 +79,9 @@ export function AddPendingModal({ visible, onClose }: Props) {
   const [reminderMinutes, setReminderMinutes] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [allContacts, setAllContacts] = useState<Contacts.Contact[]>([]);
 
   const uniqueContacts = useMemo(() => {
     const seen = new Map<string, { name: string; phone: string }>();
@@ -74,9 +97,7 @@ export function AddPendingModal({ visible, onClose }: Props) {
   const filteredSuggestions = useMemo(() => {
     if (!contactName.trim()) return [];
     const lower = contactName.trim().toLowerCase();
-    return uniqueContacts.filter((c) =>
-      c.name.toLowerCase().includes(lower)
-    );
+    return uniqueContacts.filter((c) => c.name.toLowerCase().includes(lower));
   }, [contactName, uniqueContacts]);
 
   useEffect(() => {
@@ -105,23 +126,26 @@ export function AddPendingModal({ visible, onClose }: Props) {
         sort: Contacts.SortTypes.FirstName,
       });
       if (data.length > 0) {
-        Alert.alert(
-          t("pickFromContacts"),
-          "",
-          data.slice(0, 20).map((c) => ({
-            text: `${c.name} (${c.phoneNumbers?.[0]?.number ?? ""})`,
-            onPress: () => {
-              setContactName(c.name || "");
-              setMobileNumber(
-                c.phoneNumbers?.[0]?.number?.replace(/\s/g, "") || ""
-              );
-              setShowSuggestions(false);
-            },
-          }))
-        );
+        setAllContacts(data);
+        setContactSearch("");
+        setShowContactPicker(true);
       }
     } catch {}
   };
+
+  const filteredContacts = useMemo(() => {
+    if (!contactSearch.trim()) return allContacts.slice(0, 50);
+    const lower = contactSearch.trim().toLowerCase();
+    return allContacts
+      .filter((c) => {
+        const nameMatch = c.name?.toLowerCase().includes(lower);
+        const phoneMatch = c.phoneNumbers?.some((p) =>
+          p.number?.replace(/\D/g, "").includes(lower),
+        );
+        return nameMatch || phoneMatch;
+      })
+      .slice(0, 50);
+  }, [contactSearch, allContacts]);
 
   const handleSave = async () => {
     if (!contactName.trim()) {
@@ -134,10 +158,7 @@ export function AddPendingModal({ visible, onClose }: Props) {
     }
     const digits = mobileNumber.replace(/\D/g, "");
     if (digits.length < 10) {
-      Alert.alert(
-        t("invalidPhone"),
-        t("invalidPhoneLength")
-      );
+      Alert.alert(t("invalidPhone"), t("invalidPhoneLength"));
       return;
     }
     if (!amount.trim()) {
@@ -165,7 +186,10 @@ export function AddPendingModal({ visible, onClose }: Props) {
       }
       dateObj.setHours(reminderHours, reminderMinutes, 0, 0);
       if (dateObj <= new Date()) {
-        Alert.alert("Invalid Time", "You cannot set a reminder for a time that has already passed.");
+        Alert.alert(
+          "Invalid Time",
+          "You cannot set a reminder for a time that has already passed.",
+        );
         return;
       }
       reminderDate = dateObj.getTime();
@@ -215,7 +239,11 @@ export function AddPendingModal({ visible, onClose }: Props) {
               {t("addPending")}
             </Text>
             <Pressable onPress={handleClose} hitSlop={12}>
-              <MaterialIcons name="close" size={26} color={colors.mutedForeground} />
+              <MaterialIcons
+                name="close"
+                size={26}
+                color={colors.mutedForeground}
+              />
             </Pressable>
           </View>
 
@@ -226,7 +254,10 @@ export function AddPendingModal({ visible, onClose }: Props) {
             <Pressable
               style={[
                 styles.contactPickBtn,
-                { backgroundColor: colors.secondary, borderRadius: colors.radius },
+                {
+                  backgroundColor: colors.secondary,
+                  borderRadius: colors.radius,
+                },
               ]}
               onPress={pickContact}
             >
@@ -373,9 +404,7 @@ export function AddPendingModal({ visible, onClose }: Props) {
                 style={[
                   styles.reminderToggleLabel,
                   {
-                    color: wantsReminder
-                      ? colors.primary
-                      : colors.foreground,
+                    color: wantsReminder ? colors.primary : colors.foreground,
                   },
                 ]}
               >
@@ -461,7 +490,10 @@ export function AddPendingModal({ visible, onClose }: Props) {
               onPress={handleSave}
             >
               <Text
-                style={[styles.saveBtnText, { color: colors.primaryForeground }]}
+                style={[
+                  styles.saveBtnText,
+                  { color: colors.primaryForeground },
+                ]}
               >
                 {t("save")}
               </Text>
@@ -481,6 +513,88 @@ export function AddPendingModal({ visible, onClose }: Props) {
         }}
         onCancel={() => setShowTimePicker(false)}
       />
+
+      <Modal
+        visible={showContactPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowContactPicker(false)}
+      >
+        <View style={styles.contactOverlay}>
+          <View style={[styles.contactSheet, { backgroundColor: colors.card }]}>
+            <View style={styles.contactHeader}>
+              <Text style={[styles.title, { color: colors.foreground }]}>
+                {t("pickFromContacts")}
+              </Text>
+              <Pressable
+                onPress={() => setShowContactPicker(false)}
+                hitSlop={12}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={26}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
+              value={contactSearch}
+              onChangeText={setContactSearch}
+              placeholder="Search contacts..."
+              placeholderTextColor={colors.mutedForeground}
+            />
+            <ScrollView style={styles.contactList}>
+              {filteredContacts.map((c) => (
+                <Pressable
+                  key={c.name + (c.phoneNumbers?.[0]?.number || "")}
+                  style={[
+                    styles.contactItem,
+                    { borderBottomColor: colors.border },
+                  ]}
+                  onPress={() => {
+                    setContactName(c.name || "");
+                    setMobileNumber(
+                      c.phoneNumbers?.[0]?.number?.replace(/\s/g, "") || "",
+                    );
+                    setShowContactPicker(false);
+                    setShowSuggestions(false);
+                  }}
+                >
+                  <MaterialIcons
+                    name="person"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <View style={styles.contactInfo}>
+                    <Text
+                      style={[styles.contactName, { color: colors.foreground }]}
+                    >
+                      {c.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.contactPhone,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      {c.phoneNumbers?.[0]?.number || ""}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -609,5 +723,45 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 17,
     fontWeight: "700",
+  },
+  contactOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  contactSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 44,
+    maxHeight: "80%",
+  },
+  contactHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  contactList: {
+    flex: 1,
+    marginTop: 12,
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  contactPhone: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });

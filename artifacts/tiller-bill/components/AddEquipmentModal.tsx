@@ -35,35 +35,44 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const pickFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.7,
+        allowsEditing: true,
+        aspect: [1, 1],
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Image picker error:", e);
     }
   };
 
   const pickFromCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("cameraPermission"), t("cameraPermissionDenied"));
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.7,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("cameraPermission"), t("cameraPermissionDenied"));
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.7,
+        allowsEditing: true,
+        aspect: [1, 1],
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Camera error:", e);
     }
   };
 
@@ -85,7 +94,8 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
       Alert.alert(t("missingField"), t("enterValidRate"));
       return;
     }
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web")
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     addEquipment({
       name: name.trim(),
       hourlyRate: rateNum,
@@ -105,20 +115,34 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
         <View style={[styles.sheet, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.foreground }]}>{t("addEquipment")}</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              {t("addEquipment")}
+            </Text>
             <Pressable onPress={handleClose} hitSlop={12}>
-              <MaterialIcons name="close" size={26} color={colors.mutedForeground} />
+              <MaterialIcons
+                name="close"
+                size={26}
+                color={colors.mutedForeground}
+              />
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <Pressable
               style={[
                 styles.photoBox,
@@ -134,15 +158,26 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
                 <Image source={{ uri: photoUri }} style={styles.photoPreview} />
               ) : (
                 <>
-                  <MaterialIcons name="add-a-photo" size={40} color={colors.primary} />
-                  <Text style={[styles.photoText, { color: colors.mutedForeground }]}>
+                  <MaterialIcons
+                    name="add-a-photo"
+                    size={40}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.photoText,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
                     {t("addPhoto")}
                   </Text>
                 </>
               )}
             </Pressable>
 
-            <Text style={[styles.label, { color: colors.foreground }]}>{t("equipmentName")}</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("equipmentName")}
+            </Text>
             <TextInput
               style={[
                 styles.input,
@@ -160,7 +195,9 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
               returnKeyType="next"
             />
 
-            <Text style={[styles.label, { color: colors.foreground }]}>{t("hourlyRate")}</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("hourlyRate")}
+            </Text>
             <TextInput
               style={[
                 styles.input,
@@ -180,10 +217,21 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
             />
 
             <Pressable
-              style={[styles.saveBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              style={[
+                styles.saveBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                },
+              ]}
               onPress={handleSave}
             >
-              <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>
+              <Text
+                style={[
+                  styles.saveBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
                 {t("save")}
               </Text>
             </Pressable>

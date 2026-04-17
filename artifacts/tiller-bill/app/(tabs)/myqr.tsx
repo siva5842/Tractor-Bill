@@ -49,39 +49,50 @@ export default function MyQrTab() {
           prevBrightness.current = null;
         }
       };
-    }, [myQrUri])
+    }, [myQrUri]),
   );
 
   const handleUpload = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 1,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setMyQrUri(result.assets[0].uri);
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 1,
+        allowsEditing: false,
+      });
+      if (!result.canceled && result.assets[0]) {
+        if (Platform.OS !== "web")
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setMyQrUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Upload error:", e);
     }
   };
 
   const handleCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("cameraPermission"), t("cameraPermissionDenied"));
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 1,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setMyQrUri(result.assets[0].uri);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("cameraPermission"), t("cameraPermissionDenied"));
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 1,
+        allowsEditing: false,
+      });
+      if (!result.canceled && result.assets[0]) {
+        if (Platform.OS !== "web")
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setMyQrUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Camera error:", e);
     }
   };
 
@@ -113,7 +124,12 @@ export default function MyQrTab() {
       <View style={[styles.content, { paddingBottom: bottomPad }]}>
         {myQrUri ? (
           <>
-            <View style={[styles.qrCard, { backgroundColor: "#FFFFFF", borderRadius: 20 }]}>
+            <View
+              style={[
+                styles.qrCard,
+                { backgroundColor: "#FFFFFF", borderRadius: 20 },
+              ]}
+            >
               <Image
                 source={{ uri: myQrUri }}
                 style={styles.qrImage}
@@ -125,17 +141,36 @@ export default function MyQrTab() {
             </Text>
             <View style={styles.btnRow}>
               <Pressable
-                style={[styles.changeBtn, { borderColor: colors.primary, borderRadius: colors.radius }]}
+                style={[
+                  styles.changeBtn,
+                  { borderColor: colors.primary, borderRadius: colors.radius },
+                ]}
                 onPress={showOptions}
               >
-                <MaterialIcons name="swap-horiz" size={20} color={colors.primary} />
-                <Text style={[styles.changeBtnText, { color: colors.primary }]}>{t("changeQR")}</Text>
+                <MaterialIcons
+                  name="swap-horiz"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={[styles.changeBtnText, { color: colors.primary }]}>
+                  {t("changeQR")}
+                </Text>
               </Pressable>
               <Pressable
-                style={[styles.removeBtn, { borderColor: colors.destructive, borderRadius: colors.radius }]}
+                style={[
+                  styles.removeBtn,
+                  {
+                    borderColor: colors.destructive,
+                    borderRadius: colors.radius,
+                  },
+                ]}
                 onPress={handleRemove}
               >
-                <MaterialIcons name="delete-outline" size={20} color={colors.destructive} />
+                <MaterialIcons
+                  name="delete-outline"
+                  size={20}
+                  color={colors.destructive}
+                />
               </Pressable>
             </View>
           </>
@@ -147,18 +182,39 @@ export default function MyQrTab() {
                 { backgroundColor: colors.secondary, borderRadius: 48 },
               ]}
             >
-              <MaterialIcons name="qr-code-2" size={80} color={colors.primary} />
+              <MaterialIcons
+                name="qr-code-2"
+                size={80}
+                color={colors.primary}
+              />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("myQrTitle")}</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+              {t("myQrTitle")}
+            </Text>
             <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
               {t("myQrDesc")}
             </Text>
             <Pressable
-              style={[styles.uploadBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              style={[
+                styles.uploadBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                },
+              ]}
               onPress={showOptions}
             >
-              <MaterialIcons name="upload" size={22} color={colors.primaryForeground} />
-              <Text style={[styles.uploadBtnText, { color: colors.primaryForeground }]}>
+              <MaterialIcons
+                name="upload"
+                size={22}
+                color={colors.primaryForeground}
+              />
+              <Text
+                style={[
+                  styles.uploadBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
                 {t("uploadQR")}
               </Text>
             </Pressable>
@@ -166,7 +222,10 @@ export default function MyQrTab() {
         )}
       </View>
 
-      <ProfileModal visible={showProfile} onClose={() => setShowProfile(false)} />
+      <ProfileModal
+        visible={showProfile}
+        onClose={() => setShowProfile(false)}
+      />
     </View>
   );
 }

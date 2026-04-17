@@ -70,13 +70,33 @@ function formatTime12(h: number, m: number): string {
 }
 
 function parseDateStr(dateStr: string): Date | null {
-  const parts = dateStr.split("/");
-  if (parts.length !== 3) return null;
-  const d = new Date(
-    parseInt(parts[2]),
-    parseInt(parts[1]) - 1,
-    parseInt(parts[0])
-  );
+  const cleaned = dateStr.replace(/\s+/g, "").replace(/-/g, "");
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits.length < 6 || digits.length > 8) return null;
+  let day: number, month: number, year: number;
+  if (digits.length === 6) {
+    day = parseInt(digits.slice(0, 2));
+    month = parseInt(digits.slice(2, 4));
+    year = parseInt("20" + digits.slice(4, 6));
+  } else if (digits.length === 7) {
+    day = parseInt(digits.slice(0, 1));
+    month = parseInt(digits.slice(1, 3));
+    year = parseInt("20" + digits.slice(3, 7));
+  } else {
+    day = parseInt(digits.slice(0, 2));
+    month = parseInt(digits.slice(2, 4));
+    year = parseInt(digits.slice(4, 8));
+  }
+  if (
+    day < 1 ||
+    day > 31 ||
+    month < 1 ||
+    month > 12 ||
+    year < 2000 ||
+    year > 2100
+  )
+    return null;
+  const d = new Date(year, month - 1, day);
   if (isNaN(d.getTime())) return null;
   return d;
 }
@@ -88,7 +108,7 @@ interface ReminderModalProps {
   onSave: (
     debtId: string,
     reminderDate: number,
-    notificationId?: string
+    notificationId?: string,
   ) => void;
 }
 
@@ -96,9 +116,7 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
   const { t } = useApp();
   const colors = useColors();
 
-  const existingDate = debt?.reminderDate
-    ? new Date(debt.reminderDate)
-    : null;
+  const existingDate = debt?.reminderDate ? new Date(debt.reminderDate) : null;
 
   const [dateStr, setDateStr] = React.useState(() => {
     if (existingDate) {
@@ -114,9 +132,7 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
     if (visible && debt) {
       const ed = debt.reminderDate ? new Date(debt.reminderDate) : null;
       if (ed) {
-        setDateStr(
-          `${ed.getDate()}/${ed.getMonth() + 1}/${ed.getFullYear()}`
-        );
+        setDateStr(`${ed.getDate()}/${ed.getMonth() + 1}/${ed.getFullYear()}`);
         setHours(ed.getHours());
         setMinutes(ed.getMinutes());
       } else {
@@ -165,7 +181,12 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
   const isReschedule = !!debt.reminderDate;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={reminderStyles.overlay}
@@ -177,21 +198,32 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
               {isReschedule ? t("rescheduleReminder") : t("addNewReminder")}
             </Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <MaterialIcons name="close" size={26} color={colors.mutedForeground} />
+              <MaterialIcons
+                name="close"
+                size={26}
+                color={colors.mutedForeground}
+              />
             </Pressable>
           </View>
 
           <View
             style={[
               reminderStyles.infoRow,
-              { backgroundColor: colors.secondary, borderRadius: colors.radius },
+              {
+                backgroundColor: colors.secondary,
+                borderRadius: colors.radius,
+              },
             ]}
           >
             <MaterialIcons name="person" size={16} color={colors.primary} />
-            <Text style={[reminderStyles.infoName, { color: colors.foreground }]}>
+            <Text
+              style={[reminderStyles.infoName, { color: colors.foreground }]}
+            >
               {debt.contactName}
             </Text>
-            <Text style={[reminderStyles.infoAmount, { color: colors.primary }]}>
+            <Text
+              style={[reminderStyles.infoAmount, { color: colors.primary }]}
+            >
               ₹{debt.amount.toFixed(0)}
             </Text>
           </View>
@@ -203,11 +235,23 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
                 { borderColor: colors.border, borderRadius: colors.radius },
               ]}
             >
-              <MaterialIcons name="access-time" size={14} color={colors.mutedForeground} />
-              <Text style={[reminderStyles.currentText, { color: colors.mutedForeground }]}>
+              <MaterialIcons
+                name="access-time"
+                size={14}
+                color={colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  reminderStyles.currentText,
+                  { color: colors.mutedForeground },
+                ]}
+              >
                 {t("reminderSetFor")}: {formatDate(debt.reminderDate)}{" "}
                 {existingDate
-                  ? formatTime12(existingDate.getHours(), existingDate.getMinutes())
+                  ? formatTime12(
+                      existingDate.getHours(),
+                      existingDate.getMinutes(),
+                    )
                   : ""}
               </Text>
             </View>
@@ -247,8 +291,14 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
             ]}
             onPress={() => setShowTimePicker(true)}
           >
-            <MaterialIcons name="access-time" size={20} color={colors.primary} />
-            <Text style={[reminderStyles.timePickerText, { color: colors.primary }]}>
+            <MaterialIcons
+              name="access-time"
+              size={20}
+              color={colors.primary}
+            />
+            <Text
+              style={[reminderStyles.timePickerText, { color: colors.primary }]}
+            >
               {formatTime12(hours, minutes)}
             </Text>
             <MaterialIcons name="edit" size={16} color={colors.primary} />
@@ -261,8 +311,17 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
             ]}
             onPress={handleSave}
           >
-            <MaterialIcons name="alarm-on" size={20} color={colors.primaryForeground} />
-            <Text style={[reminderStyles.saveBtnText, { color: colors.primaryForeground }]}>
+            <MaterialIcons
+              name="alarm-on"
+              size={20}
+              color={colors.primaryForeground}
+            />
+            <Text
+              style={[
+                reminderStyles.saveBtnText,
+                { color: colors.primaryForeground },
+              ]}
+            >
               {isReschedule ? t("rescheduleReminder") : t("addNewReminder")}
             </Text>
           </Pressable>
@@ -407,7 +466,7 @@ function GroupCard({
         .replace("{name}", group.contactName)
         .replace("{amount}", group.total.toFixed(2));
       Linking.openURL(
-        `https://wa.me/91${group.mobileNumber.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`
+        `https://wa.me/91${group.mobileNumber.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`,
       );
     }
   };
@@ -416,7 +475,11 @@ function GroupCard({
     if (confirmationSettings.confirmMarkAsPaid) {
       Alert.alert(t("confirmMarkAsPaidTitle"), t("confirmMarkAsPaidMsg"), [
         { text: t("cancel"), style: "cancel" },
-        { text: t("paid"), style: "default", onPress: () => onPaidDebt(debtId) },
+        {
+          text: t("paid"),
+          style: "default",
+          onPress: () => onPaidDebt(debtId),
+        },
       ]);
     } else {
       onPaidDebt(debtId);
@@ -452,7 +515,9 @@ function GroupCard({
       ]}
     >
       <View style={styles.groupHeader}>
-        <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
+        <View
+          style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}
+        >
           <Text style={[styles.avatarText, { color: colors.primary }]}>
             {group.contactName.charAt(0).toUpperCase()}
           </Text>
@@ -463,12 +528,19 @@ function GroupCard({
             {group.contactName}
           </Text>
           {!!group.mobileNumber && (
-            <Text style={[styles.groupPhone, { color: colors.mutedForeground }]}>
+            <Text
+              style={[styles.groupPhone, { color: colors.mutedForeground }]}
+            >
               {group.mobileNumber}
             </Text>
           )}
           <View style={styles.debtCountRow}>
-            <View style={[styles.countBadge, { backgroundColor: colors.primary + "18" }]}>
+            <View
+              style={[
+                styles.countBadge,
+                { backgroundColor: colors.primary + "18" },
+              ]}
+            >
               <Text style={[styles.countText, { color: colors.primary }]}>
                 {group.debts.length} {t("groupDebts")}
               </Text>
@@ -484,7 +556,10 @@ function GroupCard({
             <Pressable
               style={[
                 styles.groupQrBtn,
-                { backgroundColor: colors.primary + "18", borderRadius: colors.radius },
+                {
+                  backgroundColor: colors.primary + "18",
+                  borderRadius: colors.radius,
+                },
               ]}
               onPress={() => onQR(group.total)}
             >
@@ -510,7 +585,9 @@ function GroupCard({
                 name={latestDebt?.reminderDate ? "alarm-on" : "add-alarm"}
                 size={18}
                 color={
-                  latestDebt?.reminderDate ? colors.primary : colors.mutedForeground
+                  latestDebt?.reminderDate
+                    ? colors.primary
+                    : colors.mutedForeground
                 }
               />
             </Pressable>
@@ -527,14 +604,18 @@ function GroupCard({
                 {t("callCustomer")}
               </Text>
             </Pressable>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.divider, { backgroundColor: colors.border }]}
+            />
             <Pressable style={styles.actionBtn} onPress={handleWhatsApp}>
               <MaterialIcons name="chat" size={16} color={colors.primary} />
               <Text style={[styles.actionText, { color: colors.primary }]}>
                 {t("whatsapp")}
               </Text>
             </Pressable>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.divider, { backgroundColor: colors.border }]}
+            />
           </>
         )}
         <Pressable
@@ -553,7 +634,9 @@ function GroupCard({
       </View>
 
       {expanded && (
-        <View style={[styles.itemsContainer, { borderTopColor: colors.border }]}>
+        <View
+          style={[styles.itemsContainer, { borderTopColor: colors.border }]}
+        >
           {group.debts.map((debt, idx) => (
             <View
               key={debt.id}
@@ -575,13 +658,21 @@ function GroupCard({
                 )}
                 {!!debt.reminderDate && (
                   <View style={styles.reminderRow}>
-                    <MaterialIcons name="alarm" size={11} color={colors.accent} />
-                    <Text style={[styles.reminderText, { color: colors.accent }]}>
+                    <MaterialIcons
+                      name="alarm"
+                      size={11}
+                      color={colors.accent}
+                    />
+                    <Text
+                      style={[styles.reminderText, { color: colors.accent }]}
+                    >
                       {formatDate(debt.reminderDate)}
                     </Text>
                   </View>
                 )}
-                <Text style={[styles.debtDate, { color: colors.mutedForeground }]}>
+                <Text
+                  style={[styles.debtDate, { color: colors.mutedForeground }]}
+                >
                   {formatDate(debt.createdAt)}
                 </Text>
               </View>
@@ -594,13 +685,22 @@ function GroupCard({
                   <Pressable
                     style={[
                       styles.debtActionBtn,
-                      { backgroundColor: colors.primary + "18", borderRadius: 8 },
+                      {
+                        backgroundColor: colors.primary + "18",
+                        borderRadius: 8,
+                      },
                     ]}
                     onPress={() => onQR(debt.amount)}
                     hitSlop={6}
                   >
-                    <MaterialIcons name="qr-code" size={14} color={colors.primary} />
-                    <Text style={[styles.debtActionText, { color: colors.primary }]}>
+                    <MaterialIcons
+                      name="qr-code"
+                      size={14}
+                      color={colors.primary}
+                    />
+                    <Text
+                      style={[styles.debtActionText, { color: colors.primary }]}
+                    >
                       QR
                     </Text>
                   </Pressable>
@@ -612,7 +712,11 @@ function GroupCard({
                     onPress={() => handlePaid(debt.id)}
                     hitSlop={6}
                   >
-                    <MaterialIcons name="check-circle" size={14} color="#2E7D32" />
+                    <MaterialIcons
+                      name="check-circle"
+                      size={14}
+                      color="#2E7D32"
+                    />
                     <Text style={[styles.debtActionText, { color: "#2E7D32" }]}>
                       {t("paid")}
                     </Text>
@@ -634,7 +738,9 @@ function GroupCard({
                       name={debt.reminderDate ? "alarm-on" : "add-alarm"}
                       size={14}
                       color={
-                        debt.reminderDate ? colors.primary : colors.mutedForeground
+                        debt.reminderDate
+                          ? colors.primary
+                          : colors.mutedForeground
                       }
                     />
                   </Pressable>
@@ -662,8 +768,12 @@ function GroupCard({
 export default function PendingTab() {
   const { t } = useApp();
   const colors = useColors();
-  const { pendingDebts, deletePendingDebt, markPendingPaid, updatePendingDebt } =
-    useData();
+  const {
+    pendingDebts,
+    deletePendingDebt,
+    markPendingPaid,
+    updatePendingDebt,
+  } = useData();
 
   const [showAdd, setShowAdd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -673,14 +783,14 @@ export default function PendingTab() {
   const groups = useMemo(() => groupDebts(pendingDebts), [pendingDebts]);
   const totalOwed = useMemo(
     () => pendingDebts.reduce((sum, d) => sum + d.amount, 0),
-    [pendingDebts]
+    [pendingDebts],
   );
   const count = groups.length;
 
   const handleReminderSave = (
     debtId: string,
     reminderDate: number,
-    notificationId?: string
+    notificationId?: string,
   ) => {
     updatePendingDebt(debtId, { reminderDate, notificationId });
     if (Platform.OS !== "web")
@@ -701,7 +811,9 @@ export default function PendingTab() {
           >
             {t("totalOutstanding")}
           </Text>
-          <Text style={[styles.totalAmount, { color: colors.primaryForeground }]}>
+          <Text
+            style={[styles.totalAmount, { color: colors.primaryForeground }]}
+          >
             ₹{totalOwed.toFixed(2)}
           </Text>
           <Text
@@ -726,7 +838,9 @@ export default function PendingTab() {
               size={64}
               color={colors.primary + "40"}
             />
-            <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+            <Text
+              style={[styles.emptyTitle, { color: colors.mutedForeground }]}
+            >
               {t("noPending")}
             </Text>
             <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
@@ -759,7 +873,10 @@ export default function PendingTab() {
       </Pressable>
 
       <AddPendingModal visible={showAdd} onClose={() => setShowAdd(false)} />
-      <ProfileModal visible={showProfile} onClose={() => setShowProfile(false)} />
+      <ProfileModal
+        visible={showProfile}
+        onClose={() => setShowProfile(false)}
+      />
 
       {qrAmount !== null && (
         <QRCodeModal
