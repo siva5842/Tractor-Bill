@@ -12,6 +12,7 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "expo": "~54.0.33",
     "expo-auth-session": "^7.0.10",
     "expo-brightness": "^14.0.8",

@@ -1,4 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import {
+  GoogleSignin,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
 import React, { useRef, useState } from "react";
 import {
   Animated,
@@ -15,9 +19,19 @@ import { useApp } from "@/context/AppContext";
 import { Language } from "@/i18n/translations";
 import { useColors } from "@/hooks/useColors";
 
+GoogleSignin.configure({
+  webClientId:
+    "234691857286-c0dkll3eala2p368qk8gh1ivv8fe0g8l.apps.googleusercontent.com",
+});
+
 const { width: SCREEN_W } = Dimensions.get("window");
 
-const LANGUAGES: { code: Language; label: string; nativeLabel: string; flag: string }[] = [
+const LANGUAGES: {
+  code: Language;
+  label: string;
+  nativeLabel: string;
+  flag: string;
+}[] = [
   { code: "en", label: "English", nativeLabel: "English", flag: "🇬🇧" },
   { code: "ta", label: "Tamil", nativeLabel: "தமிழ்", flag: "🌾" },
   { code: "hi", label: "Hindi", nativeLabel: "हिंदी", flag: "🇮🇳" },
@@ -26,15 +40,43 @@ const LANGUAGES: { code: Language; label: string; nativeLabel: string; flag: str
 interface TourSlide {
   icon: React.ComponentProps<typeof MaterialIcons>["name"];
   iconColor: string;
-  titleKey: "onboardingStep2Title" | "onboardingStep3Title" | "onboardingStep4Title" | "onboardingStep5Title";
-  descKey: "onboardingStep2Desc" | "onboardingStep3Desc" | "onboardingStep4Desc" | "onboardingStep5Desc";
+  titleKey:
+    | "onboardingStep2Title"
+    | "onboardingStep3Title"
+    | "onboardingStep4Title"
+    | "onboardingStep5Title";
+  descKey:
+    | "onboardingStep2Desc"
+    | "onboardingStep3Desc"
+    | "onboardingStep4Desc"
+    | "onboardingStep5Desc";
 }
 
 const TOUR_SLIDES: TourSlide[] = [
-  { icon: "agriculture", iconColor: "#2E7D32", titleKey: "onboardingStep2Title", descKey: "onboardingStep2Desc" },
-  { icon: "timer", iconColor: "#1565C0", titleKey: "onboardingStep3Title", descKey: "onboardingStep3Desc" },
-  { icon: "pending-actions", iconColor: "#F9A825", titleKey: "onboardingStep4Title", descKey: "onboardingStep4Desc" },
-  { icon: "qr-code", iconColor: "#6A1B9A", titleKey: "onboardingStep5Title", descKey: "onboardingStep5Desc" },
+  {
+    icon: "agriculture",
+    iconColor: "#2E7D32",
+    titleKey: "onboardingStep2Title",
+    descKey: "onboardingStep2Desc",
+  },
+  {
+    icon: "timer",
+    iconColor: "#1565C0",
+    titleKey: "onboardingStep3Title",
+    descKey: "onboardingStep3Desc",
+  },
+  {
+    icon: "pending-actions",
+    iconColor: "#F9A825",
+    titleKey: "onboardingStep4Title",
+    descKey: "onboardingStep4Desc",
+  },
+  {
+    icon: "qr-code",
+    iconColor: "#6A1B9A",
+    titleKey: "onboardingStep5Title",
+    descKey: "onboardingStep5Desc",
+  },
 ];
 
 interface Props {
@@ -51,9 +93,17 @@ export function OnboardingScreen({ onDone }: Props) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const animateTransition = (toValue: number, cb: () => void) => {
-    Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
       cb();
-      Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
     });
   };
 
@@ -65,6 +115,26 @@ export function OnboardingScreen({ onDone }: Props) {
     animateTransition(0, () => setStep("tour"));
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      console.log("Google sign-in success:", userInfo);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message === statusCodes.SIGN_IN_CANCELLED) {
+          console.log("User cancelled login");
+        } else if (error.message === statusCodes.IN_PROGRESS) {
+          console.log("Sign in in progress");
+        } else if (error.message === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          console.log("Play services not available");
+        } else {
+          console.log("Google sign-in error:", error.message);
+        }
+      }
+    }
+  };
+
   const handleNext = () => {
     if (tourIndex < TOUR_SLIDES.length - 1) {
       animateTransition(0, () => setTourIndex((i) => i + 1));
@@ -73,17 +143,22 @@ export function OnboardingScreen({ onDone }: Props) {
     }
   };
 
-  const topPad = Platform.OS === "web" ? Math.max(insets.top, 24) : insets.top + 16;
+  const topPad =
+    Platform.OS === "web" ? Math.max(insets.top, 24) : insets.top + 16;
   const bottomPad = Platform.OS === "web" ? 40 : insets.bottom + 24;
 
   return (
-    <View style={[styles.overlay, { paddingTop: topPad, paddingBottom: bottomPad }]}>
+    <View
+      style={[styles.overlay, { paddingTop: topPad, paddingBottom: bottomPad }]}
+    >
       <View style={[styles.card, { backgroundColor: colors.card }]}>
         {step === "language" ? (
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             <View style={[styles.logoRow]}>
               <MaterialIcons name="grass" size={40} color={colors.primary} />
-              <Text style={[styles.appName, { color: colors.primary }]}>{t("appName")}</Text>
+              <Text style={[styles.appName, { color: colors.primary }]}>
+                {t("appName")}
+              </Text>
             </View>
 
             <Text style={[styles.langTitle, { color: colors.foreground }]}>
@@ -103,25 +178,44 @@ export function OnboardingScreen({ onDone }: Props) {
                     style={[
                       styles.langOption,
                       {
-                        borderColor: isSelected ? colors.primary : colors.border,
-                        backgroundColor: isSelected ? colors.primary + "12" : colors.background,
+                        borderColor: isSelected
+                          ? colors.primary
+                          : colors.border,
+                        backgroundColor: isSelected
+                          ? colors.primary + "12"
+                          : colors.background,
                         borderRadius: colors.radius,
                       },
                     ]}
                   >
                     <Text style={styles.langFlag}>{lang.flag}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.langNative, { color: colors.foreground }]}>
+                      <Text
+                        style={[
+                          styles.langNative,
+                          { color: colors.foreground },
+                        ]}
+                      >
                         {lang.nativeLabel}
                       </Text>
                       {lang.nativeLabel !== lang.label && (
-                        <Text style={[styles.langEnglish, { color: colors.mutedForeground }]}>
+                        <Text
+                          style={[
+                            styles.langEnglish,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
                           {lang.label}
                         </Text>
                       )}
                     </View>
                     {isSelected && (
-                      <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
+                      <View
+                        style={[
+                          styles.checkCircle,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      >
                         <MaterialIcons name="check" size={14} color="#fff" />
                       </View>
                     )}
@@ -131,17 +225,48 @@ export function OnboardingScreen({ onDone }: Props) {
             </View>
 
             <Pressable
-              style={[styles.primaryBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              style={[
+                styles.primaryBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                },
+              ]}
               onPress={handleContinue}
             >
-              <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>
+              <Text
+                style={[
+                  styles.primaryBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
                 {t("onboardingContinue")}
               </Text>
-              <MaterialIcons name="arrow-forward" size={20} color={colors.primaryForeground} />
+              <MaterialIcons
+                name="arrow-forward"
+                size={20}
+                color={colors.primaryForeground}
+              />
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.googleBtn,
+                { borderColor: colors.border, borderRadius: colors.radius },
+              ]}
+              onPress={signInWithGoogle}
+            >
+              <Text
+                style={[styles.googleBtnText, { color: colors.foreground }]}
+              >
+                Sign in with Google
+              </Text>
             </Pressable>
 
             <Pressable onPress={onDone} style={styles.skipBtn} hitSlop={12}>
-              <Text style={[styles.skipText, { color: colors.mutedForeground }]}>
+              <Text
+                style={[styles.skipText, { color: colors.mutedForeground }]}
+              >
                 {t("onboardingSkip")}
               </Text>
             </Pressable>
@@ -155,7 +280,8 @@ export function OnboardingScreen({ onDone }: Props) {
                   style={[
                     styles.dot,
                     {
-                      backgroundColor: i === tourIndex ? colors.primary : colors.border,
+                      backgroundColor:
+                        i === tourIndex ? colors.primary : colors.border,
                       width: i === tourIndex ? 24 : 8,
                     },
                   ]}
@@ -184,21 +310,40 @@ export function OnboardingScreen({ onDone }: Props) {
             </Text>
 
             <Pressable
-              style={[styles.primaryBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              style={[
+                styles.primaryBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                },
+              ]}
               onPress={handleNext}
             >
-              <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>
-                {tourIndex < TOUR_SLIDES.length - 1 ? t("onboardingNext") : t("onboardingGetStarted")}
+              <Text
+                style={[
+                  styles.primaryBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
+                {tourIndex < TOUR_SLIDES.length - 1
+                  ? t("onboardingNext")
+                  : t("onboardingGetStarted")}
               </Text>
               <MaterialIcons
-                name={tourIndex < TOUR_SLIDES.length - 1 ? "arrow-forward" : "rocket-launch"}
+                name={
+                  tourIndex < TOUR_SLIDES.length - 1
+                    ? "arrow-forward"
+                    : "rocket-launch"
+                }
                 size={20}
                 color={colors.primaryForeground}
               />
             </Pressable>
 
             <Pressable onPress={onDone} style={styles.skipBtn} hitSlop={12}>
-              <Text style={[styles.skipText, { color: colors.mutedForeground }]}>
+              <Text
+                style={[styles.skipText, { color: colors.mutedForeground }]}
+              >
                 {t("onboardingSkip")}
               </Text>
             </Pressable>
@@ -335,5 +480,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 4,
+  },
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderWidth: 1.5,
+    width: "100%",
+    marginTop: 8,
+  },
+  googleBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

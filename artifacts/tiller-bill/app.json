@@ -48,6 +48,7 @@
           "origin": "https://replit.com/"
         }
       ],
+      ["@react-native-google-signin/google-signin"],
       "expo-font",
       "expo-web-browser",
       "expo-image-picker",
