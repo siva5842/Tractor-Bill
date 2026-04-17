@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "Tractor Bill",
+    "slug": "tiller-bill",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "tiller-bill",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2E7D32"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSContactsUsageDescription": "Tractor Bill needs contacts access to pick customers for debt tracking.",
+        "NSCameraUsageDescription": "Tractor Bill needs camera access to take equipment photos and scan QR codes.",
+        "NSPhotoLibraryUsageDescription": "Tractor Bill needs photo library access to upload equipment photos and QR codes."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2E7D32"
+      },
+      "package": "com.sivaprakashamp.tractorbill",
+      "permissions": [
+        "NOTIFICATIONS",
+        "VIBRATE",
+        "android.permission.NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.READ_CONTACTS",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-image-picker",
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2E7D32",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "859c4066-b228-4d40-8ecd-cc273f709384"
+      }
+    }
+  }
+}

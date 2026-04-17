@@ -1,0 +1,17 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "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",
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "openai/gpt-oss-120b:free",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "openai/gpt-oss-120b:free",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "openai/gpt-oss-120b:free"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(npx eas-cli *)"
+    ]
+  }
+}

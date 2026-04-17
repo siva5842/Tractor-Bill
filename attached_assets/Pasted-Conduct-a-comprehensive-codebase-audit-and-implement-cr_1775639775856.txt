@@ -1,0 +1,29 @@
+Conduct a comprehensive codebase audit and implement critical bug fixes and new features. I have a strict generation limit, so ensure ALL of the following requirements are fully functional in this single response. Do not use placeholders; write the complete logic.
+
+**1. Fix Strict Form Validation (Alert Popups):**
+* **Bug:** Empty fields and short phone numbers are currently saving without warnings.
+* **Fix:** In EVERY submit function (Add Equipment, Add/Edit Pending Debt, Link Contact, Calculator), wrap the save logic in conditional checks. 
+* If ANY field is null/empty, execution MUST stop and trigger a native `Alert.alert("Missing Field", "Please enter the [Field Name]")`. 
+* Phone numbers MUST trigger an Alert if the length is strictly less than 10 digits.
+
+**2. Fix Reminders & Analog TimePicker:**
+* **Bug:** The reminder option is missing, and the analog clock is not working.
+* **Fix:** When saving a session to pending, or adding a manual pending debt, explicitly show a "Set Reminder?" toggle.
+* If toggled ON, use `@react-native-community/datetimepicker` (or Expo equivalent). You MUST set `mode="time"` and `display="clock"` (for Android) to ensure the user gets the visual analog clock face with the draggable hand and AM/PM options.
+
+**3. Reschedule & Add New Reminders (New Feature):**
+* In the "Pending" tab, next to grouped debts or individual items, add a "Bell" icon.
+* Tapping this icon opens a modal to either add a completely new reminder (if none exists) or reschedule an existing one using the analog TimePicker. Update the scheduled local push notification accordingly.
+
+**4. Existing Contact Auto-Suggest (New Feature):**
+* When creating a new manual debt or saving a timer session to pending, the "Name" input field should act as an auto-complete/dropdown.
+* Pull all unique customer names currently saved in the Pending/History database. If the user starts typing a name that exists, display a selectable list. Tapping the name auto-fills their Name and Phone Number.
+
+**5. Chat History Functionality Audit (Ensure these are NOT broken):**
+* **Default Profile:** Name must remain Sivaprakasham.
+* **App Name:** Must be "Tractor Bill" everywhere.
+* **Editable QR:** When hitting "Stop" -> "Generate QR", the calculated amount must appear in an editable text input allowing the user to change it BEFORE rendering the UPI QR code.
+* **Pending Grouping:** Debts must be grouped by Customer Name/Phone. Must have individual QRs for specific equipments, and a Total QR for the whole group.
+* **Timer Constraint:** If "Allow Simultaneous Timers" in Settings is toggled OFF, block starting a second timer with an Alert.
+* **Settings Toggles:** The toggle switches must be named "turn off pop for [Action]" (e.g., Deletions, Mark as Paid) and they must successfully bypass warning alerts if turned off.
+* **History Tab:** Must show Total Income (Green), Total Pending (Red), and include a Delete icon for every item.

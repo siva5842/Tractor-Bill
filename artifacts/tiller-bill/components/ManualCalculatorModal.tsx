@@ -1,0 +1,268 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+import { useApp } from "@/context/AppContext";
+import { useData } from "@/context/DataContext";
+import { useColors } from "@/hooks/useColors";
+
+interface Props {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export function ManualCalculatorModal({ visible, onClose }: Props) {
+  const { t } = useApp();
+  const colors = useColors();
+  const { addHistoryEntry } = useData();
+
+  const [rate, setRate] = useState("");
+  const [hours, setHours] = useState("");
+  const [minutes, setMinutes] = useState("");
+  const [result, setResult] = useState<number | null>(null);
+  const [savedToast, setSavedToast] = useState(false);
+
+  const calculate = () => {
+    if (!rate.trim()) {
+      Alert.alert(t("missingField"), t("enterValidRate"));
+      return;
+    }
+    const r = parseFloat(rate);
+    if (isNaN(r) || r <= 0) {
+      Alert.alert(t("missingField"), t("enterValidRate"));
+      return;
+    }
+    const h = parseFloat(hours) || 0;
+    const m = parseFloat(minutes) || 0;
+    if (h === 0 && m === 0) {
+      Alert.alert(t("missingField"), t("enterHoursOrMinutes"));
+      return;
+    }
+    const totalHours = h + m / 60;
+    setResult(r * totalHours);
+    setSavedToast(false);
+  };
+
+  const reset = () => {
+    setRate("");
+    setHours("");
+    setMinutes("");
+    setResult(null);
+    setSavedToast(false);
+  };
+
+  const handleSaveToHistory = () => {
+    if (result === null) return;
+    const totalSecs = ((parseFloat(hours) || 0) * 3600) + ((parseFloat(minutes) || 0) * 60);
+    addHistoryEntry({
+      type: "calculator",
+      title: `${t("rate")}: ₹${rate}/hr`,
+      amount: result,
+      durationSeconds: totalSecs > 0 ? totalSecs : undefined,
+    });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2500);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
+        <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+          <View style={styles.header}>
+            <MaterialIcons name="calculate" size={28} color={colors.primary} />
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("manualCalc")}</Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <MaterialIcons name="close" size={26} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Text style={[styles.label, { color: colors.foreground }]}>{t("rate")}</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+              value={rate}
+              onChangeText={setRate}
+              placeholder={t("ratePlaceholder")}
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="decimal-pad"
+            />
+
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Text style={[styles.label, { color: colors.foreground }]}>{t("hours")}</Text>
+                <TextInput
+                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                  value={hours}
+                  onChangeText={setHours}
+                  placeholder="0"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={styles.half}>
+                <Text style={[styles.label, { color: colors.foreground }]}>{t("minutes")}</Text>
+                <TextInput
+                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                  value={minutes}
+                  onChangeText={setMinutes}
+                  placeholder="0"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+
+            <Pressable
+              style={[styles.calcBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              onPress={calculate}
+            >
+              <Text style={[styles.calcBtnText, { color: colors.primaryForeground }]}>
+                {t("calculate")}
+              </Text>
+            </Pressable>
+
+            {result !== null && (
+              <View style={[styles.resultBox, { backgroundColor: colors.timerActive ?? colors.secondary, borderColor: colors.primary, borderRadius: colors.radius }]}>
+                <Text style={[styles.resultLabel, { color: colors.mutedForeground }]}>
+                  {t("totalBill")}
+                </Text>
+                <Text style={[styles.resultValue, { color: colors.primary }]}>
+                  ₹{result.toFixed(2)}
+                </Text>
+                <View style={styles.resultActions}>
+                  <Pressable
+                    onPress={handleSaveToHistory}
+                    style={[
+                      styles.saveHistoryBtn,
+                      {
+                        backgroundColor: savedToast ? "#2E7D32" : colors.primary + "18",
+                        borderRadius: colors.radius,
+                        borderColor: savedToast ? "#2E7D32" : colors.primary,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={savedToast ? "check-circle" : "history"}
+                      size={16}
+                      color={savedToast ? "#fff" : colors.primary}
+                    />
+                    <Text style={[styles.saveHistoryText, { color: savedToast ? "#fff" : colors.primary }]}>
+                      {savedToast ? t("savedToHistory") : t("saveToHistory")}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={reset} hitSlop={8}>
+                    <Text style={[styles.resetText, { color: colors.mutedForeground }]}>{t("reset")}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    maxHeight: "85%",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    flex: 1,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 16,
+    marginBottom: 14,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  half: {
+    flex: 1,
+  },
+  calcBtn: {
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  calcBtnText: {
+    fontSize: 17,
+    fontWeight: "700",
+  },
+  resultBox: {
+    borderWidth: 2,
+    paddingVertical: 24,
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  resultLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  resultValue: {
+    fontSize: 42,
+    fontWeight: "800",
+  },
+  resultActions: {
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+  },
+  saveHistoryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+  },
+  saveHistoryText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  resetText: {
+    fontSize: 14,
+    textDecorationLine: "underline",
+  },
+});

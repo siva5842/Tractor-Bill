@@ -1,0 +1,22 @@
+Analyze the current React Native/Expo codebase. I need to finalize the remaining features, apply new logic tweaks, and perform a global name change. Implement the following strict requirements:
+
+**1. Global App Rename:**
+* Search the entire codebase (including `app.json`, top app bars, splash screen text, UI headers, and translation files) and change the app name from "Tiller Bill" to "Tractor Bill".
+
+**2. Complete History Deletion (Resume Task):**
+* Ensure the "History" tab's delete functionality is fully implemented. Every listed item (finished sessions, paid debts, calculator entries) must have a delete icon.
+* Deleting an item must check the user's `AsyncStorage` settings for the "turn off pop for History Deletions" toggle. If the popup is NOT turned off, show the warning.
+* Immediately recalculate the "Total Income Earned" and "Total Pending Debts" summary cards upon deletion.
+
+**3. Grouped Pending Debts & Dynamic QRs:**
+* In the Pending tab, group debts by the exact Customer Name and Mobile Number. If a customer has rented multiple different equipments (or the same one multiple times), display them under a single expandable contact card.
+* **Individual QR:** Next to every individual equipment debt inside that group, add a "Generate QR" option for that specific amount.
+* **Group Total QR:** At the top of the grouped contact card, display the combined total debt amount and add a "Generate Total QR" button that creates a UPI QR code for the sum of all their unpaid items.
+
+**4. Timer Constraints & Settings:**
+* **Single Timer Default:** By default, restrict the app to running only one timer globally. If a timer is active and the user presses "Start" on a different equipment, block it and show an Alert: "A timer is already running with [Active Equipment Name]."
+* **Simultaneous Toggle:** Inside the User Profile / Settings modal, add a new toggle switch: "Allow Simultaneous Timers".
+* If the user turns this toggle ON, bypass the restriction and allow multiple timers to run at the same time. Save this preference in `AsyncStorage`.
+
+**5. Maintain Strict Validations:**
+* Ensure previously established rules remain active: No null fields allowed (trigger alerts specifying the missing field), and phone numbers must be minimum 10 digits.
