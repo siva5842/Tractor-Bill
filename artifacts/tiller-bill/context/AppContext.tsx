@@ -61,7 +61,7 @@ interface AppContextType {
 }
 
 const defaultProfile: UserProfile = {
-  name: "",
+  name: "Sivaprakasham",
   upiId: "",
   isSignedIn: false,
 };

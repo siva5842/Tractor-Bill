@@ -1,5 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -127,6 +128,7 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
   const [hours, setHours] = React.useState(existingDate?.getHours() ?? 9);
   const [minutes, setMinutes] = React.useState(existingDate?.getMinutes() ?? 0);
   const [showTimePicker, setShowTimePicker] = React.useState(false);
+  const [showDatePicker, setShowDatePicker] = React.useState(false);
 
   React.useEffect(() => {
     if (visible && debt) {
@@ -263,6 +265,7 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
           <TextInput
             style={[
               reminderStyles.input,
+              { flex: 1 },
               {
                 borderColor: colors.border,
                 color: colors.foreground,
@@ -276,6 +279,22 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
             placeholderTextColor={colors.mutedForeground}
             keyboardType="numeric"
           />
+          <Pressable
+            style={[
+              reminderStyles.calendarBtn,
+              {
+                backgroundColor: colors.primary + "18",
+                borderRadius: colors.radius,
+              },
+            ]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <MaterialIcons
+              name="calendar-month"
+              size={22}
+              color={colors.primary}
+            />
+          </Pressable>
 
           <Text style={[reminderStyles.label, { color: colors.foreground }]}>
             {t("reminderTime")}
@@ -338,6 +357,21 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
           setShowTimePicker(false);
         }}
         onCancel={() => setShowTimePicker(false)}
+      />
+
+      <DateTimePicker
+        value={new Date()}
+        mode="date"
+        display={Platform.OS === "ios" ? "spinner" : "default"}
+        onChange={(event: any, selectedDate: any) => {
+          setShowDatePicker(false);
+          if (selectedDate) {
+            const day = selectedDate.getDate();
+            const month = selectedDate.getMonth() + 1;
+            const year = selectedDate.getFullYear();
+            setDateStr(`${day}/${month}/${year}`);
+          }
+        }}
       />
     </Modal>
   );
@@ -433,6 +467,12 @@ const reminderStyles = StyleSheet.create({
   saveBtnText: {
     fontSize: 17,
     fontWeight: "700",
+  },
+  calendarBtn: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

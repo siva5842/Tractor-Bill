@@ -1,6 +1,6 @@
 {
   "name": "tiller-bill",
-  "version": "0.0.0",
+  "version": "2.4.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -12,6 +12,7 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "^8.0.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "expo": "~54.0.33",
     "expo-auth-session": "^7.0.10",

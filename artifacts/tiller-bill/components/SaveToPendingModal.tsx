@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as Haptics from "expo-haptics";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -94,6 +95,7 @@ export function SaveToPendingModal({
   const [reminderHours, setReminderHours] = useState(9);
   const [reminderMinutes, setReminderMinutes] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
@@ -431,22 +433,41 @@ export function SaveToPendingModal({
                 <Text style={[styles.label, { color: colors.foreground }]}>
                   {t("reminderDate")}
                 </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: colors.border,
-                      color: colors.foreground,
-                      backgroundColor: colors.background,
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                  value={reminderDateStr}
-                  onChangeText={setReminderDateStr}
-                  placeholder={t("datePlaceholder")}
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="numeric"
-                />
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { flex: 1 },
+                      {
+                        borderColor: colors.border,
+                        color: colors.foreground,
+                        backgroundColor: colors.background,
+                        borderRadius: colors.radius,
+                      },
+                    ]}
+                    value={reminderDateStr}
+                    onChangeText={setReminderDateStr}
+                    placeholder={t("datePlaceholder")}
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numeric"
+                  />
+                  <Pressable
+                    style={[
+                      styles.calendarBtn,
+                      {
+                        backgroundColor: colors.primary + "18",
+                        borderRadius: colors.radius,
+                      },
+                    ]}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <MaterialIcons
+                      name="calendar-month"
+                      size={22}
+                      color={colors.primary}
+                    />
+                  </Pressable>
+                </View>
 
                 <Text style={[styles.label, { color: colors.foreground }]}>
                   {t("reminderTime")}
@@ -612,6 +633,21 @@ export function SaveToPendingModal({
           </View>
         </View>
       </Modal>
+
+      <DateTimePicker
+        value={new Date()}
+        mode="date"
+        display={Platform.OS === "ios" ? "spinner" : "default"}
+        onChange={(event: any, selectedDate: any) => {
+          setShowDatePicker(false);
+          if (selectedDate) {
+            const day = selectedDate.getDate();
+            const month = selectedDate.getMonth() + 1;
+            const year = selectedDate.getFullYear();
+            setReminderDateStr(`${day}/${month}/${year}`);
+          }
+        }}
+      />
     </Modal>
   );
 }
@@ -798,5 +834,11 @@ const styles = StyleSheet.create({
   contactPhone: {
     fontSize: 13,
     marginTop: 2,
+  },
+  calendarBtn: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
