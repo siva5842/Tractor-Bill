@@ -2,10 +2,13 @@
   "expo": {
     "name": "Tractor Bill",
     "slug": "tiller-bill",
-    "version": "2.4.0",
+    "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "tiller-bill",
+    "scheme": [
+      "tiller-bill",
+      "com.googleusercontent.apps.234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm"
+    ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
