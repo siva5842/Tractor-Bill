@@ -25,7 +25,7 @@ import { TranslationKey } from "@/i18n/translations";
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID =
-  "234691857286-gl1mkh6va62n2l8g01o57bktvteude4s.apps.googleusercontent.com";
+  "234691857286-c0dkll3eala2p368qk8gh1ivv8fe0g8l.apps.googleusercontent.com";
 
 interface Props {
   visible: boolean;
@@ -47,8 +47,12 @@ function ToggleRow({
   return (
     <View style={[toggleStyles.row, { borderBottomColor: colors.border }]}>
       <View style={toggleStyles.text}>
-        <Text style={[toggleStyles.label, { color: colors.foreground }]}>{label}</Text>
-        <Text style={[toggleStyles.desc, { color: colors.mutedForeground }]}>{description}</Text>
+        <Text style={[toggleStyles.label, { color: colors.foreground }]}>
+          {label}
+        </Text>
+        <Text style={[toggleStyles.desc, { color: colors.mutedForeground }]}>
+          {description}
+        </Text>
       </View>
       <Switch
         value={value}
@@ -76,9 +80,16 @@ const toggleStyles = StyleSheet.create({
 
 export function ProfileModal({ visible, onClose }: Props) {
   const {
-    t, profile, updateProfile, signIn, signOut, setHasSeenOnboarding,
-    confirmationSettings, updateConfirmationSettings,
-    timerSettings, updateTimerSettings,
+    t,
+    profile,
+    updateProfile,
+    signIn,
+    signOut,
+    setHasSeenOnboarding,
+    confirmationSettings,
+    updateConfirmationSettings,
+    timerSettings,
+    updateTimerSettings,
   } = useApp();
   const colors = useColors();
 
@@ -101,6 +112,7 @@ export function ProfileModal({ visible, onClose }: Props) {
       "profile",
       "email",
       "https://www.googleapis.com/auth/drive.appdata",
+      "https://www.googleapis.com/auth/drive.file",
     ],
   });
 
@@ -133,7 +145,10 @@ export function ProfileModal({ visible, onClose }: Props) {
   };
 
   const handleSave = () => {
-    updateProfile({ name: name.trim() || "Sivaprakasham", upiId: upiId.trim() });
+    updateProfile({
+      name: name.trim() || "Sivaprakasham",
+      upiId: upiId.trim(),
+    });
     onClose();
   };
 
@@ -173,16 +188,27 @@ export function ProfileModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
         <View style={[styles.sheet, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.foreground }]}>{t("settings")}</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              {t("settings")}
+            </Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <MaterialIcons name="close" size={26} color={colors.mutedForeground} />
+              <MaterialIcons
+                name="close"
+                size={26}
+                color={colors.mutedForeground}
+              />
             </Pressable>
           </View>
 
@@ -193,23 +219,48 @@ export function ProfileModal({ visible, onClose }: Props) {
             </View>
           )}
 
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text
+              style={[styles.sectionLabel, { color: colors.mutedForeground }]}
+            >
               {t("profile").toUpperCase()}
             </Text>
 
-            <Text style={[styles.label, { color: colors.foreground }]}>{t("userName")}</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("userName")}
+            </Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
               value={name}
               onChangeText={setName}
               placeholder={t("namePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
             />
 
-            <Text style={[styles.label, { color: colors.foreground }]}>{t("upiId")}</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("upiId")}
+            </Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
               value={upiId}
               onChangeText={setUpiId}
               placeholder={t("upiPlaceholder")}
@@ -218,72 +269,140 @@ export function ProfileModal({ visible, onClose }: Props) {
               keyboardType="email-address"
             />
 
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>
+            <Text
+              style={[
+                styles.sectionLabel,
+                { color: colors.mutedForeground, marginTop: 8 },
+              ]}
+            >
               {t("accountSection").toUpperCase()}
             </Text>
 
             {!profile.isSignedIn ? (
               <Pressable
-                style={[styles.googleBtn, { borderColor: colors.border, borderRadius: colors.radius }]}
+                style={[
+                  styles.googleBtn,
+                  { borderColor: colors.border, borderRadius: colors.radius },
+                ]}
                 onPress={() => promptAsync()}
                 disabled={!request}
               >
                 <View style={styles.googleLogo}>
                   <Text style={styles.googleLogoG}>G</Text>
                 </View>
-                <Text style={[styles.googleBtnText, { color: colors.foreground }]}>
+                <Text
+                  style={[styles.googleBtnText, { color: colors.foreground }]}
+                >
                   {t("signInGoogle")}
                 </Text>
               </Pressable>
             ) : (
-              <View style={[styles.accountCard, { backgroundColor: colors.secondary, borderRadius: colors.radius }]}>
-                <View style={[styles.googleAvatarSmall, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.accountCard,
+                  {
+                    backgroundColor: colors.secondary,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.googleAvatarSmall,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
                   <Text style={styles.googleAvatarText}>
-                    {(profile.displayName ?? profile.email ?? "G")[0].toUpperCase()}
+                    {(profile.displayName ??
+                      profile.email ??
+                      "G")[0].toUpperCase()}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.accountName, { color: colors.foreground }]}>
+                  <Text
+                    style={[styles.accountName, { color: colors.foreground }]}
+                  >
                     {profile.displayName || profile.name}
                   </Text>
-                  <Text style={[styles.accountEmail, { color: colors.mutedForeground }]}>
+                  <Text
+                    style={[
+                      styles.accountEmail,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
                     {profile.email}
                   </Text>
                 </View>
-                <Pressable onPress={signOut} style={styles.signOutBtn} hitSlop={8}>
-                  <MaterialIcons name="logout" size={20} color={colors.destructive} />
+                <Pressable
+                  onPress={signOut}
+                  style={styles.signOutBtn}
+                  hitSlop={8}
+                >
+                  <MaterialIcons
+                    name="logout"
+                    size={20}
+                    color={colors.destructive}
+                  />
                 </Pressable>
               </View>
             )}
 
             {profile.isSignedIn && (
               <>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 20 }]}>
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    { color: colors.mutedForeground, marginTop: 20 },
+                  ]}
+                >
                   {t("dataSection").toUpperCase()}
                 </Text>
                 <Pressable
-                  style={[styles.syncBtn, { borderRadius: colors.radius, backgroundColor: colors.primary + "14", borderColor: colors.primary + "55" }]}
+                  style={[
+                    styles.syncBtn,
+                    {
+                      borderRadius: colors.radius,
+                      backgroundColor: colors.primary + "14",
+                      borderColor: colors.primary + "55",
+                    },
+                  ]}
                   onPress={handleSyncToCloud}
                   disabled={isSyncing}
                 >
                   {isSyncing ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <MaterialIcons name="cloud-upload" size={22} color={colors.primary} />
+                    <MaterialIcons
+                      name="cloud-upload"
+                      size={22}
+                      color={colors.primary}
+                    />
                   )}
                   <Text style={[styles.syncBtnText, { color: colors.primary }]}>
                     {isSyncing ? t("syncing") : t("syncToCloud")}
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.syncBtn, { borderRadius: colors.radius, backgroundColor: colors.accent + "14", borderColor: colors.accent + "55", marginTop: 10 }]}
+                  style={[
+                    styles.syncBtn,
+                    {
+                      borderRadius: colors.radius,
+                      backgroundColor: colors.accent + "14",
+                      borderColor: colors.accent + "55",
+                      marginTop: 10,
+                    },
+                  ]}
                   onPress={handleRestoreFromCloud}
                   disabled={isRestoring}
                 >
                   {isRestoring ? (
                     <ActivityIndicator size="small" color={colors.accent} />
                   ) : (
-                    <MaterialIcons name="cloud-download" size={22} color={colors.accent} />
+                    <MaterialIcons
+                      name="cloud-download"
+                      size={22}
+                      color={colors.accent}
+                    />
                   )}
                   <Text style={[styles.syncBtnText, { color: colors.accent }]}>
                     {isRestoring ? t("restoring") : t("restoreFromCloud")}
@@ -292,66 +411,134 @@ export function ProfileModal({ visible, onClose }: Props) {
               </>
             )}
 
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 20 }]}>
+            <Text
+              style={[
+                styles.sectionLabel,
+                { color: colors.mutedForeground, marginTop: 20 },
+              ]}
+            >
               {t("timerSettings").toUpperCase()}
             </Text>
-            <View style={[styles.toggleCard, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View
+              style={[
+                styles.toggleCard,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius,
+                },
+              ]}
+            >
               <ToggleRow
                 label={t("allowSimultaneousTimers")}
                 description={t("allowSimultaneousTimersDesc")}
                 value={timerSettings.allowSimultaneousTimers}
-                onToggle={(v) => updateTimerSettings({ allowSimultaneousTimers: v })}
+                onToggle={(v) =>
+                  updateTimerSettings({ allowSimultaneousTimers: v })
+                }
               />
             </View>
 
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 20 }]}>
+            <Text
+              style={[
+                styles.sectionLabel,
+                { color: colors.mutedForeground, marginTop: 20 },
+              ]}
+            >
               {t("popupSettings").toUpperCase()}
             </Text>
-            <View style={[styles.toggleCard, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View
+              style={[
+                styles.toggleCard,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius,
+                },
+              ]}
+            >
               <ToggleRow
                 label={t("turnOffPopDeletions")}
                 description={t("turnOffPopDeletionsDesc")}
                 value={!confirmationSettings.confirmDeletions}
-                onToggle={(v) => updateConfirmationSettings({ confirmDeletions: !v })}
+                onToggle={(v) =>
+                  updateConfirmationSettings({ confirmDeletions: !v })
+                }
               />
               <ToggleRow
                 label={t("turnOffPopMarkAsPaid")}
                 description={t("turnOffPopMarkAsPaidDesc")}
                 value={!confirmationSettings.confirmMarkAsPaid}
-                onToggle={(v) => updateConfirmationSettings({ confirmMarkAsPaid: !v })}
+                onToggle={(v) =>
+                  updateConfirmationSettings({ confirmMarkAsPaid: !v })
+                }
               />
               <ToggleRow
                 label={t("turnOffPopExitTimer")}
                 description={t("turnOffPopExitTimerDesc")}
                 value={!confirmationSettings.confirmExitTimer}
-                onToggle={(v) => updateConfirmationSettings({ confirmExitTimer: !v })}
+                onToggle={(v) =>
+                  updateConfirmationSettings({ confirmExitTimer: !v })
+                }
               />
               <ToggleRow
                 label={t("turnOffPopHistoryDelete")}
                 description={t("turnOffPopHistoryDeleteDesc")}
                 value={!confirmationSettings.confirmHistoryDeletion}
-                onToggle={(v) => updateConfirmationSettings({ confirmHistoryDeletion: !v })}
+                onToggle={(v) =>
+                  updateConfirmationSettings({ confirmHistoryDeletion: !v })
+                }
               />
             </View>
 
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 20 }]}>
+            <Text
+              style={[
+                styles.sectionLabel,
+                { color: colors.mutedForeground, marginTop: 20 },
+              ]}
+            >
               {t("helpSection").toUpperCase()}
             </Text>
             <Pressable
-              style={[styles.syncBtn, { borderRadius: colors.radius, backgroundColor: colors.primary + "14", borderColor: colors.primary + "55" }]}
+              style={[
+                styles.syncBtn,
+                {
+                  borderRadius: colors.radius,
+                  backgroundColor: colors.primary + "14",
+                  borderColor: colors.primary + "55",
+                },
+              ]}
               onPress={handleReplayGuide}
             >
-              <MaterialIcons name="help-outline" size={22} color={colors.primary} />
+              <MaterialIcons
+                name="help-outline"
+                size={22}
+                color={colors.primary}
+              />
               <Text style={[styles.syncBtnText, { color: colors.primary }]}>
                 {t("helpReplayGuide")}
               </Text>
             </Pressable>
 
             <Pressable
-              style={[styles.saveBtn, { backgroundColor: colors.primary, borderRadius: colors.radius, marginTop: 24 }]}
+              style={[
+                styles.saveBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                  marginTop: 24,
+                },
+              ]}
               onPress={handleSave}
             >
-              <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>{t("save")}</Text>
+              <Text
+                style={[
+                  styles.saveBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
+                {t("save")}
+              </Text>
             </Pressable>
           </ScrollView>
         </View>
@@ -414,19 +601,32 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   googleLogo: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: "#fff", alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, elevation: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   googleLogoG: { fontSize: 14, fontWeight: "800", color: "#4285F4" },
   googleBtnText: { fontSize: 15, fontWeight: "600", flex: 1 },
   accountCard: {
-    flexDirection: "row", alignItems: "center",
-    padding: 14, gap: 12, marginBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 12,
+    marginBottom: 4,
   },
   googleAvatarSmall: {
-    width: 38, height: 38, borderRadius: 19,
-    alignItems: "center", justifyContent: "center",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
   },
   googleAvatarText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   accountName: { fontSize: 15, fontWeight: "700" },

@@ -1,5 +1,6 @@
 {
   "expo": {
+    "version": "2.3.0",
     "android": {
       "package": "com.tractorbill.app"
     },
