@@ -21,7 +21,7 @@ import { useColors } from "@/hooks/useColors";
 
 GoogleSignin.configure({
   webClientId:
-    "234691857286-c0dkll3eala2p368qk8gh1ivv8fe0g8l.apps.googleusercontent.com",
+    "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com",
 });
 
 const { width: SCREEN_W } = Dimensions.get("window");
