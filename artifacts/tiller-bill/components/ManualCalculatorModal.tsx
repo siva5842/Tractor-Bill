@@ -25,13 +25,16 @@ interface Props {
 export function ManualCalculatorModal({ visible, onClose }: Props) {
   const { t } = useApp();
   const colors = useColors();
-  const { addHistoryEntry } = useData();
+  const { addHistoryEntry, addPendingDebt } = useData();
 
   const [rate, setRate] = useState("");
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [result, setResult] = useState<number | null>(null);
   const [savedToast, setSavedToast] = useState(false);
+  const [showPendingForm, setShowPendingForm] = useState(false);
+  const [pendingName, setPendingName] = useState("");
+  const [pendingNotes, setPendingNotes] = useState("");
 
   const calculate = () => {
     if (!rate.trim()) {
@@ -60,11 +63,15 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
     setMinutes("");
     setResult(null);
     setSavedToast(false);
+    setShowPendingForm(false);
+    setPendingName("");
+    setPendingNotes("");
   };
 
   const handleSaveToHistory = () => {
     if (result === null) return;
-    const totalSecs = ((parseFloat(hours) || 0) * 3600) + ((parseFloat(minutes) || 0) * 60);
+    const totalSecs =
+      (parseFloat(hours) || 0) * 3600 + (parseFloat(minutes) || 0) * 60;
     addHistoryEntry({
       type: "calculator",
       title: `${t("rate")}: ₹${rate}/hr`,
@@ -75,8 +82,38 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
     setTimeout(() => setSavedToast(false), 2500);
   };
 
+  const handleAddToPending = () => {
+    if (!pendingName.trim()) {
+      Alert.alert(t("missingField"), t("enterContactName"));
+      return;
+    }
+    if (result === null || result <= 0) return;
+    addPendingDebt({
+      contactName: pendingName.trim(),
+      mobileNumber: pendingNotes.trim(),
+      amount: result,
+    });
+    setSavedToast(true);
+    setTimeout(() => {
+      setSavedToast(false);
+      setShowPendingForm(false);
+      setPendingName("");
+      setPendingNotes("");
+    }, 2000);
+  };
+
+  const openPendingForm = () => {
+    if (result === null) return;
+    setShowPendingForm(true);
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
@@ -84,16 +121,35 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
         <View style={[styles.sheet, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
             <MaterialIcons name="calculate" size={28} color={colors.primary} />
-            <Text style={[styles.title, { color: colors.foreground }]}>{t("manualCalc")}</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              {t("manualCalc")}
+            </Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <MaterialIcons name="close" size={26} color={colors.mutedForeground} />
+              <MaterialIcons
+                name="close"
+                size={26}
+                color={colors.mutedForeground}
+              />
             </Pressable>
           </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <Text style={[styles.label, { color: colors.foreground }]}>{t("rate")}</Text>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("rate")}
+            </Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
               value={rate}
               onChangeText={setRate}
               placeholder={t("ratePlaceholder")}
@@ -103,9 +159,19 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
 
             <View style={styles.row}>
               <View style={styles.half}>
-                <Text style={[styles.label, { color: colors.foreground }]}>{t("hours")}</Text>
+                <Text style={[styles.label, { color: colors.foreground }]}>
+                  {t("hours")}
+                </Text>
                 <TextInput
-                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderRadius: colors.radius,
+                    },
+                  ]}
                   value={hours}
                   onChangeText={setHours}
                   placeholder="0"
@@ -114,9 +180,19 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                 />
               </View>
               <View style={styles.half}>
-                <Text style={[styles.label, { color: colors.foreground }]}>{t("minutes")}</Text>
+                <Text style={[styles.label, { color: colors.foreground }]}>
+                  {t("minutes")}
+                </Text>
                 <TextInput
-                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderRadius: colors.radius,
+                    },
+                  ]}
                   value={minutes}
                   onChangeText={setMinutes}
                   placeholder="0"
@@ -127,17 +203,42 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
             </View>
 
             <Pressable
-              style={[styles.calcBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              style={[
+                styles.calcBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                },
+              ]}
               onPress={calculate}
             >
-              <Text style={[styles.calcBtnText, { color: colors.primaryForeground }]}>
+              <Text
+                style={[
+                  styles.calcBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
                 {t("calculate")}
               </Text>
             </Pressable>
 
-            {result !== null && (
-              <View style={[styles.resultBox, { backgroundColor: colors.timerActive ?? colors.secondary, borderColor: colors.primary, borderRadius: colors.radius }]}>
-                <Text style={[styles.resultLabel, { color: colors.mutedForeground }]}>
+            {result !== null && !showPendingForm && (
+              <View
+                style={[
+                  styles.resultBox,
+                  {
+                    backgroundColor: colors.timerActive ?? colors.secondary,
+                    borderColor: colors.primary,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.resultLabel,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
                   {t("totalBill")}
                 </Text>
                 <Text style={[styles.resultValue, { color: colors.primary }]}>
@@ -149,7 +250,9 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                     style={[
                       styles.saveHistoryBtn,
                       {
-                        backgroundColor: savedToast ? "#2E7D32" : colors.primary + "18",
+                        backgroundColor: savedToast
+                          ? "#2E7D32"
+                          : colors.primary + "18",
                         borderRadius: colors.radius,
                         borderColor: savedToast ? "#2E7D32" : colors.primary,
                       },
@@ -160,12 +263,135 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                       size={16}
                       color={savedToast ? "#fff" : colors.primary}
                     />
-                    <Text style={[styles.saveHistoryText, { color: savedToast ? "#fff" : colors.primary }]}>
+                    <Text
+                      style={[
+                        styles.saveHistoryText,
+                        { color: savedToast ? "#fff" : colors.primary },
+                      ]}
+                    >
                       {savedToast ? t("savedToHistory") : t("saveToHistory")}
                     </Text>
                   </Pressable>
+                  <Pressable
+                    onPress={openPendingForm}
+                    style={[
+                      styles.pendingBtn,
+                      {
+                        backgroundColor: colors.accent + "18",
+                        borderRadius: colors.radius,
+                        borderColor: colors.accent,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="person-add"
+                      size={16}
+                      color={colors.accent}
+                    />
+                    <Text
+                      style={[styles.pendingBtnText, { color: colors.accent }]}
+                    >
+                      {t("addToPending") || "Add to Pending"}
+                    </Text>
+                  </Pressable>
                   <Pressable onPress={reset} hitSlop={8}>
-                    <Text style={[styles.resetText, { color: colors.mutedForeground }]}>{t("reset")}</Text>
+                    <Text
+                      style={[
+                        styles.resetText,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      {t("reset")}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {result !== null && showPendingForm && (
+              <View
+                style={[
+                  styles.pendingFormBox,
+                  {
+                    backgroundColor: colors.secondary,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.pendingFormTitle,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  {t("addToPending") || "Add to Pending List"}
+                </Text>
+                <Text style={[styles.label, { color: colors.foreground }]}>
+                  {t("contactName")}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderRadius: colors.radius,
+                    },
+                  ]}
+                  value={pendingName}
+                  onChangeText={setPendingName}
+                  placeholder={t("contactName")}
+                  placeholderTextColor={colors.mutedForeground}
+                />
+                <Text style={[styles.label, { color: colors.foreground }]}>
+                  {t("notes") || "Notes"}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderRadius: colors.radius,
+                    },
+                  ]}
+                  value={pendingNotes}
+                  onChangeText={setPendingNotes}
+                  placeholder={t("notes") || "Details/Notes"}
+                  placeholderTextColor={colors.mutedForeground}
+                />
+                <Text style={[styles.pendingAmount, { color: colors.primary }]}>
+                  {t("amount")}: ₹{result.toFixed(2)}
+                </Text>
+                <View style={styles.pendingFormActions}>
+                  <Pressable
+                    onPress={handleAddToPending}
+                    style={[
+                      styles.submitBtn,
+                      {
+                        backgroundColor: colors.accent,
+                        borderRadius: colors.radius,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.submitBtnText, { color: "#fff" }]}>
+                      {t("save")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setShowPendingForm(false)}
+                    style={[styles.cancelBtn, { borderRadius: colors.radius }]}
+                  >
+                    <Text
+                      style={[
+                        styles.cancelBtnText,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      {t("cancel")}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -264,5 +490,56 @@ const styles = StyleSheet.create({
   resetText: {
     fontSize: 14,
     textDecorationLine: "underline",
+  },
+  pendingBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+  },
+  pendingBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  pendingFormBox: {
+    padding: 16,
+    marginTop: 12,
+  },
+  pendingFormTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  pendingAmount: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    marginVertical: 12,
+  },
+  pendingFormActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  submitBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  submitBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

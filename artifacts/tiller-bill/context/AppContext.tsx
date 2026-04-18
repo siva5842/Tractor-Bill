@@ -61,7 +61,7 @@ interface AppContextType {
 }
 
 const defaultProfile: UserProfile = {
-  name: "Sivaprakasham",
+  name: "",
   upiId: "",
   isSignedIn: false,
 };
@@ -74,31 +74,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [myQrUri, setMyQrUriState] = useState<string | null>(null);
   const [hasSeenOnboarding, setHasSeenOnboardingState] = useState(false);
   const [onboardingReady, setOnboardingReady] = useState(false);
-  const [confirmationSettings, setConfirmationSettings] = useState<ConfirmationSettings>(
-    DEFAULT_CONFIRMATION_SETTINGS
+  const [confirmationSettings, setConfirmationSettings] =
+    useState<ConfirmationSettings>(DEFAULT_CONFIRMATION_SETTINGS);
+  const [timerSettings, setTimerSettings] = useState<TimerSettings>(
+    DEFAULT_TIMER_SETTINGS,
   );
-  const [timerSettings, setTimerSettings] = useState<TimerSettings>(DEFAULT_TIMER_SETTINGS);
 
   useEffect(() => {
     (async () => {
       try {
-        const [lang, profileStr, qr, onboarding, confirmStr, timerStr] = await Promise.all([
-          AsyncStorage.getItem("@tiller_language"),
-          AsyncStorage.getItem("@tiller_profile"),
-          AsyncStorage.getItem("@tiller_myqr"),
-          AsyncStorage.getItem("@tiller_onboarding"),
-          AsyncStorage.getItem("@tiller_confirmation_settings"),
-          AsyncStorage.getItem("@tiller_timer_settings"),
-        ]);
-        if (lang === "en" || lang === "ta" || lang === "hi") setLanguageState(lang);
+        const [lang, profileStr, qr, onboarding, confirmStr, timerStr] =
+          await Promise.all([
+            AsyncStorage.getItem("@tiller_language"),
+            AsyncStorage.getItem("@tiller_profile"),
+            AsyncStorage.getItem("@tiller_myqr"),
+            AsyncStorage.getItem("@tiller_onboarding"),
+            AsyncStorage.getItem("@tiller_confirmation_settings"),
+            AsyncStorage.getItem("@tiller_timer_settings"),
+          ]);
+        if (lang === "en" || lang === "ta" || lang === "hi")
+          setLanguageState(lang);
         if (profileStr) setProfile(JSON.parse(profileStr));
         if (qr) setMyQrUriState(qr);
         setHasSeenOnboardingState(onboarding === "true");
         if (confirmStr) {
-          setConfirmationSettings({ ...DEFAULT_CONFIRMATION_SETTINGS, ...JSON.parse(confirmStr) });
+          setConfirmationSettings({
+            ...DEFAULT_CONFIRMATION_SETTINGS,
+            ...JSON.parse(confirmStr),
+          });
         }
         if (timerStr) {
-          setTimerSettings({ ...DEFAULT_TIMER_SETTINGS, ...JSON.parse(timerStr) });
+          setTimerSettings({
+            ...DEFAULT_TIMER_SETTINGS,
+            ...JSON.parse(timerStr),
+          });
         }
       } catch {}
       setOnboardingReady(true);
@@ -138,7 +147,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [profile.name]
+    [profile.name],
   );
 
   const signOut = useCallback(async () => {
@@ -165,23 +174,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (updates: Partial<ConfirmationSettings>) => {
       setConfirmationSettings((prev) => {
         const next = { ...prev, ...updates };
-        AsyncStorage.setItem("@tiller_confirmation_settings", JSON.stringify(next));
+        AsyncStorage.setItem(
+          "@tiller_confirmation_settings",
+          JSON.stringify(next),
+        );
         return next;
       });
     },
-    []
+    [],
   );
 
-  const updateTimerSettings = useCallback(
-    (updates: Partial<TimerSettings>) => {
-      setTimerSettings((prev) => {
-        const next = { ...prev, ...updates };
-        AsyncStorage.setItem("@tiller_timer_settings", JSON.stringify(next));
-        return next;
-      });
-    },
-    []
-  );
+  const updateTimerSettings = useCallback((updates: Partial<TimerSettings>) => {
+    setTimerSettings((prev) => {
+      const next = { ...prev, ...updates };
+      AsyncStorage.setItem("@tiller_timer_settings", JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const t = useCallback(
     (key: TranslationKey): string => {
@@ -191,7 +200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         key
       );
     },
-    [language]
+    [language],
   );
 
   return (

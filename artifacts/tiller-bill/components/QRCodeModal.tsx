@@ -24,7 +24,10 @@ function generateQRSvg(data: string, size: number): string {
   const qrSize = 25;
   const cellSize = Math.floor(size / qrSize);
   const actualSize = cellSize * qrSize;
-  const hash = Array.from(data).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffffffff, 0);
+  const hash = Array.from(data).reduce(
+    (acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffffffff,
+    0,
+  );
 
   const cells: boolean[][] = [];
   for (let r = 0; r < qrSize; r++) {
@@ -38,7 +41,14 @@ function generateQRSvg(data: string, size: number): string {
         (r >= 2 && r < 5 && c >= 2 && c < 5) ||
         (r >= 2 && r < 5 && c >= qrSize - 5 && c < qrSize - 2) ||
         (r >= qrSize - 5 && r < qrSize - 2 && c >= 2 && c < 5);
-      const dataCell = Math.abs((hash ^ (r * 17 + c * 13 + r * c)) ^ (data.charCodeAt((r * qrSize + c) % data.length) || 0)) % 3 !== 0;
+      const dataCell =
+        Math.abs(
+          hash ^
+            (r * 17 + c * 13 + r * c) ^
+            (data.charCodeAt((r * qrSize + c) % data.length) || 0),
+        ) %
+          3 !==
+        0;
       cells[r][c] = finder ? !finderInner : dataCell;
     }
   }
@@ -48,8 +58,8 @@ function generateQRSvg(data: string, size: number): string {
       row.map((on, c) =>
         on
           ? `<rect x="${c * cellSize}" y="${r * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`
-          : ""
-      )
+          : "",
+      ),
     )
     .join("");
 
@@ -64,14 +74,24 @@ interface Props {
   onClose: () => void;
 }
 
-export function QRCodeModal({ visible, amount, upiId: upiIdProp, userName: userNameProp, onClose }: Props) {
+export function QRCodeModal({
+  visible,
+  amount,
+  upiId: upiIdProp,
+  userName: userNameProp,
+  onClose,
+}: Props) {
   const { t, profile } = useApp();
   const colors = useColors();
 
   const upiId = upiIdProp ?? profile.upiId ?? "";
   const userName = userNameProp ?? profile.name ?? "Tractor Bill";
 
-  const upiString = buildUPIString(upiId || "yourname@upi", userName || "Tiller Bill", amount);
+  const upiString = buildUPIString(
+    upiId || "yourname@upi",
+    userName || "Tiller Bill",
+    amount,
+  );
   const qrSvg = generateQRSvg(upiString, 240);
 
   const handleOpenUPI = () => {
@@ -88,17 +108,34 @@ export function QRCodeModal({ visible, amount, upiId: upiIdProp, userName: userN
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: colors.card, borderRadius: 20 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("generateQR")}</Text>
-          <Text style={[styles.amount, { color: colors.primary }]}>₹{amount.toFixed(2)}</Text>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.card, borderRadius: 20 },
+          ]}
+        >
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {t("generateQR")}
+          </Text>
+          <Text style={[styles.amount, { color: colors.primary }]}>
+            ₹{amount.toFixed(2)}
+          </Text>
 
           {!upiId ? (
             <View style={styles.noUpi}>
               <MaterialIcons name="warning" size={32} color={colors.accent} />
-              <Text style={[styles.noUpiText, { color: colors.mutedForeground }]}>
-                Set your UPI ID in Profile settings to generate a payment QR code.
+              <Text
+                style={[styles.noUpiText, { color: colors.mutedForeground }]}
+              >
+                Set your UPI ID in Profile settings to generate a payment QR
+                code.
               </Text>
             </View>
           ) : (
@@ -106,32 +143,43 @@ export function QRCodeModal({ visible, amount, upiId: upiIdProp, userName: userN
               <View style={styles.qrBox}>
                 <SvgXml xml={qrSvg} width={240} height={240} />
               </View>
-              <Text style={[styles.upiId, { color: colors.mutedForeground }]}>{upiId}</Text>
+              <Text style={[styles.upiId, { color: colors.mutedForeground }]}>
+                {upiId}
+              </Text>
 
               <View style={styles.actions}>
                 <Pressable
-                  style={[styles.actionBtn, { backgroundColor: colors.secondary, borderRadius: 10 }]}
-                  onPress={handleOpenUPI}
-                >
-                  <MaterialIcons name="payment" size={20} color={colors.primary} />
-                  <Text style={[styles.actionText, { color: colors.primary }]}>Open App</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.actionBtn, { backgroundColor: colors.secondary, borderRadius: 10 }]}
+                  style={[
+                    styles.actionBtn,
+                    { backgroundColor: colors.secondary, borderRadius: 10 },
+                  ]}
                   onPress={handleShare}
                 >
-                  <MaterialIcons name="share" size={20} color={colors.primary} />
-                  <Text style={[styles.actionText, { color: colors.primary }]}>Share Link</Text>
+                  <MaterialIcons
+                    name="share"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.actionText, { color: colors.primary }]}>
+                    Share Link
+                  </Text>
                 </Pressable>
               </View>
             </>
           )}
 
           <Pressable
-            style={[styles.closeBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+            style={[
+              styles.closeBtn,
+              { backgroundColor: colors.primary, borderRadius: colors.radius },
+            ]}
             onPress={onClose}
           >
-            <Text style={[styles.closeBtnText, { color: colors.primaryForeground }]}>{t("close")}</Text>
+            <Text
+              style={[styles.closeBtnText, { color: colors.primaryForeground }]}
+            >
+              {t("close")}
+            </Text>
           </Pressable>
         </View>
       </View>

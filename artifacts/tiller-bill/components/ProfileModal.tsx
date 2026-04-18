@@ -146,7 +146,7 @@ export function ProfileModal({ visible, onClose }: Props) {
 
   const handleSave = () => {
     updateProfile({
-      name: name.trim() || "Sivaprakasham",
+      name: name.trim(),
       upiId: upiId.trim(),
     });
     onClose();
