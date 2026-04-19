@@ -540,21 +540,21 @@ export function SaveToPendingModal({
       />
 
       {showDatePicker && Platform.OS !== "web" && (
-        <DateTimePicker
-          value={new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event: any, selectedDate: any) => {
-            setShowDatePicker(false);
-            if (selectedDate) {
-              const day = selectedDate.getDate();
-              const month = selectedDate.getMonth() + 1;
-              const year = selectedDate.getFullYear();
-              setReminderDateStr(`${day}/${month}/${year}`);
-            }
-          }}
-        />
-      )}
+            <DateTimePicker
+              value={new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(event: any, selectedDate: any) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  const day = String(selectedDate.getDate()).padStart(2, "0");
+                  const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+                  const year = selectedDate.getFullYear();
+                  setReminderDateStr(`${day}/${month}/${year}`);
+                }
+              }}
+            />
+          )}
 
       {showDatePicker && Platform.OS === "web" && (
         <Modal

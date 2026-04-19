@@ -534,8 +534,8 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
           onChange={(event: any, selectedDate: any) => {
             setShowDatePicker(false);
             if (selectedDate) {
-              const day = selectedDate.getDate();
-              const month = selectedDate.getMonth() + 1;
+              const day = String(selectedDate.getDate()).padStart(2, "0");
+              const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
               const year = selectedDate.getFullYear();
               setReminderDateStr(`${day}/${month}/${year}`);
             }
@@ -569,7 +569,8 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
                   const val = e.target.value; // yyyy-mm-dd
                   if (val) {
                     const [y, m, d] = val.split("-");
-                    setReminderDateStr(`${parseInt(d)}/${parseInt(m)}/${y}`);
+                    const formattedDate = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+                    setReminderDateStr(formattedDate);
                     setShowDatePicker(false);
                   }
                 }}

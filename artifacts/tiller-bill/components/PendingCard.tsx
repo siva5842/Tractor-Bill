@@ -1,9 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React from "react";
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Alert, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useApp } from "@/context/AppContext";
-import { PendingDebt } from "@/context/DataContext";
+import { PendingDebt, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 
 interface Props {
@@ -20,6 +20,11 @@ function formatDate(ts: number) {
 export function PendingCard({ debt, onDelete, onPaid }: Props) {
   const { t, confirmationSettings } = useApp();
   const colors = useColors();
+  const { deletePendingItem, markPendingItemPaid, updatePendingItem, markPendingPaid } = useData();
+  const [expanded, setExpanded] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDesc, setEditDesc] = useState("");
 
   const handleCall = () => {
     if (debt.mobileNumber) {
@@ -32,7 +37,7 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
       const msgTemplate = t("whatsappMsg");
       const msg = msgTemplate
         .replace("{name}", debt.contactName)
-        .replace("{amount}", debt.amount.toFixed(2));
+        .replace("{amount}", debt.totalAmount.toFixed(2));
       Linking.openURL(`https://wa.me/91${debt.mobileNumber.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`);
     }
   };
@@ -52,6 +57,37 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
     }
   };
 
+  const startEdit = (item: any) => {
+    setEditingItemId(item.id);
+    setEditAmount(item.amount.toString());
+    setEditDesc(item.description);
+  };
+
+  const saveEdit = (itemId: string) => {
+    const amt = parseFloat(editAmount);
+    if (isNaN(amt) || amt <= 0) {
+      Alert.alert(t("error"), t("enterValidAmount"));
+      return;
+    }
+    updatePendingItem(debt.id, itemId, { amount: amt, description: editDesc });
+    setEditingItemId(null);
+  };
+
+  const handleItemPaid = (itemId: string) => {
+    if (confirmationSettings.confirmMarkAsPaid) {
+      Alert.alert(
+        t("confirmMarkAsPaidTitle"),
+        t("confirmMarkAsPaidMsg"),
+        [
+          { text: t("cancel"), style: "cancel" },
+          { text: t("paid"), style: "default", onPress: () => markPendingItemPaid(debt.id, itemId) },
+        ]
+      );
+    } else {
+      markPendingItemPaid(debt.id, itemId);
+    }
+  };
+
   return (
     <View
       style={[
@@ -63,7 +99,7 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
         },
       ]}
     >
-      <View style={styles.top}>
+      <Pressable style={styles.top} onPress={() => setExpanded(!expanded)}>
         <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
           <Text style={[styles.avatarText, { color: colors.primary }]}>
             {debt.contactName.charAt(0).toUpperCase()}
@@ -77,11 +113,12 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
               {debt.mobileNumber}
             </Text>
           )}
-          {!!debt.equipmentName && (
-            <Text style={[styles.equip, { color: colors.mutedForeground }]}>
-              {debt.equipmentName}
+          <View style={styles.itemCountRow}>
+            <MaterialIcons name="list" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.itemCount, { color: colors.mutedForeground }]}>
+              {debt.lineItems.length} {debt.lineItems.length === 1 ? t("item") || "item" : t("items") || "items"}
             </Text>
-          )}
+          </View>
           {!!debt.reminderDate && (
             <View style={styles.reminderRow}>
               <MaterialIcons name="alarm" size={12} color={colors.accent} />
@@ -93,12 +130,76 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
         </View>
 
         <View style={styles.right}>
-          <Text style={[styles.amount, { color: colors.primary }]}>₹{debt.amount.toFixed(0)}</Text>
-          <Pressable onPress={onDelete} hitSlop={8}>
-            <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
+          <Text style={[styles.amount, { color: colors.primary }]}>₹{debt.totalAmount.toFixed(0)}</Text>
+          <MaterialIcons 
+            name={expanded ? "expand-less" : "expand-more"} 
+            size={24} 
+            color={colors.mutedForeground} 
+          />
+        </View>
+      </Pressable>
+
+      {expanded && (
+        <View style={[styles.ledger, { borderTopColor: colors.border }]}>
+          {debt.lineItems.map((item) => (
+            <View key={item.id} style={[styles.ledgerItem, { borderBottomColor: colors.border }]}>
+              {editingItemId === item.id ? (
+                <View style={styles.editBox}>
+                  <TextInput
+                    style={[styles.editInput, { color: colors.foreground, borderColor: colors.border }]}
+                    value={editDesc}
+                    onChangeText={setEditDesc}
+                    placeholder={t("description") || "Description"}
+                  />
+                  <View style={styles.editRow}>
+                    <TextInput
+                      style={[styles.editInput, { flex: 1, color: colors.foreground, borderColor: colors.border }]}
+                      value={editAmount}
+                      onChangeText={setEditAmount}
+                      keyboardType="numeric"
+                      placeholder={t("amount") || "Amount"}
+                    />
+                    <Pressable onPress={() => saveEdit(item.id)} style={styles.editActionBtn}>
+                      <MaterialIcons name="check" size={20} color={colors.primary} />
+                    </Pressable>
+                    <Pressable onPress={() => setEditingItemId(null)} style={styles.editActionBtn}>
+                      <MaterialIcons name="close" size={20} color={colors.destructive} />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.itemInfo}>
+                    <Text style={[styles.itemDesc, { color: colors.foreground }]}>{item.description}</Text>
+                    <Text style={[styles.itemDate, { color: colors.mutedForeground }]}>{formatDate(item.timestamp)}</Text>
+                  </View>
+                  <Text style={[styles.itemAmount, { color: colors.foreground }]}>₹{item.amount.toFixed(2)}</Text>
+                  <View style={styles.itemActions}>
+                    <Pressable onPress={() => startEdit(item)} hitSlop={6}>
+                      <MaterialIcons name="edit" size={18} color={colors.primary} />
+                    </Pressable>
+                    <Pressable onPress={() => handleItemPaid(item.id)} hitSlop={6}>
+                      <MaterialIcons name="check-circle" size={18} color={colors.primary} />
+                    </Pressable>
+                    <Pressable onPress={() => deletePendingItem(debt.id, item.id)} hitSlop={6}>
+                      <MaterialIcons name="delete-outline" size={18} color={colors.destructive} />
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </View>
+          ))}
+          <Pressable 
+            style={[styles.payAllBtn, { backgroundColor: colors.primary }]} 
+            onPress={handlePaidPress}
+          >
+            <MaterialIcons name="done-all" size={20} color={colors.primaryForeground} />
+            <Text style={[styles.payAllText, { color: colors.primaryForeground }]}>
+              {t("paid") || "Mark All as Paid"} (₹{debt.totalAmount.toFixed(2)})
+            </Text>
           </Pressable>
         </View>
-      </View>
+      )}
 
       <View style={[styles.actions, { borderTopColor: colors.border }]}>
         {!!debt.mobileNumber && (
@@ -115,9 +216,9 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
           </>
         )}
-        <Pressable style={styles.actionBtn} onPress={handlePaidPress}>
-          <MaterialIcons name="check-circle" size={18} color={colors.primary} />
-          <Text style={[styles.actionText, { color: colors.primary }]}>{t("paid")}</Text>
+        <Pressable style={styles.actionBtn} onPress={onDelete}>
+          <MaterialIcons name="delete-outline" size={18} color={colors.destructive} />
+          <Text style={[styles.actionText, { color: colors.destructive }]}>{t("delete")}</Text>
         </Pressable>
       </View>
     </View>
@@ -164,9 +265,13 @@ const styles = StyleSheet.create({
   mobile: {
     fontSize: 13,
   },
-  equip: {
+  itemCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  itemCount: {
     fontSize: 12,
-    fontStyle: "italic",
   },
   reminderRow: {
     flexDirection: "row",
@@ -180,11 +285,73 @@ const styles = StyleSheet.create({
   },
   right: {
     alignItems: "flex-end",
-    gap: 6,
+    gap: 4,
   },
   amount: {
     fontSize: 22,
     fontWeight: "800",
+  },
+  ledger: {
+    borderTopWidth: 1,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.02)",
+  },
+  ledgerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 10,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemDesc: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  itemDate: {
+    fontSize: 11,
+  },
+  itemAmount: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  itemActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  editBox: {
+    flex: 1,
+    gap: 6,
+  },
+  editRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  editInput: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 13,
+  },
+  editActionBtn: {
+    padding: 4,
+  },
+  payAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  payAllText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   actions: {
     flexDirection: "row",

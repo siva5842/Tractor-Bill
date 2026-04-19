@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SvgXml } from "react-native-svg";
+import QRCode from "react-native-qrcode-svg";
 
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -20,52 +20,6 @@ function buildUPIString(upiId: string, name: string, amount: number) {
   const safeName = encodeURIComponent(name.trim());
   const safeAmount = Number(amount).toFixed(2);
   return `upi://pay?pa=${safeUpiId}&pn=${safeName}&am=${safeAmount}&cu=INR`;
-}
-
-function generateQRSvg(data: string, size: number): string {
-  const qrSize = 25;
-  const cellSize = Math.floor(size / qrSize);
-  const actualSize = cellSize * qrSize;
-  const hash = Array.from(data).reduce(
-    (acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffffffff,
-    0,
-  );
-
-  const cells: boolean[][] = [];
-  for (let r = 0; r < qrSize; r++) {
-    cells[r] = [];
-    for (let c = 0; c < qrSize; c++) {
-      const finder =
-        (r < 7 && c < 7) ||
-        (r < 7 && c >= qrSize - 7) ||
-        (r >= qrSize - 7 && c < 7);
-      const finderInner =
-        (r >= 2 && r < 5 && c >= 2 && c < 5) ||
-        (r >= 2 && r < 5 && c >= qrSize - 5 && c < qrSize - 2) ||
-        (r >= qrSize - 5 && r < qrSize - 2 && c >= 2 && c < 5);
-      const dataCell =
-        Math.abs(
-          hash ^
-            (r * 17 + c * 13 + r * c) ^
-            (data.charCodeAt((r * qrSize + c) % data.length) || 0),
-        ) %
-          3 !==
-        0;
-      cells[r][c] = finder ? !finderInner : dataCell;
-    }
-  }
-
-  const rects = cells
-    .flatMap((row, r) =>
-      row.map((on, c) =>
-        on
-          ? `<rect x="${c * cellSize}" y="${r * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`
-          : "",
-      ),
-    )
-    .join("");
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${actualSize}" height="${actualSize}" viewBox="0 0 ${actualSize} ${actualSize}"><rect width="${actualSize}" height="${actualSize}" fill="white"/>${rects}</svg>`;
 }
 
 interface Props {
@@ -94,7 +48,6 @@ export function QRCodeModal({
     userName || "Tiller Bill",
     amount,
   );
-  const qrSvg = generateQRSvg(upiString, 240);
 
   const handleOpenUPI = () => {
     Linking.openURL(upiString).catch(() => {});
@@ -143,7 +96,12 @@ export function QRCodeModal({
           ) : (
             <>
               <View style={styles.qrBox}>
-                <SvgXml xml={qrSvg} width={240} height={240} />
+                <QRCode
+                  value={upiString}
+                  size={240}
+                  color="black"
+                  backgroundColor="white"
+                />
               </View>
               <Text style={[styles.upiId, { color: colors.mutedForeground }]}>
                 {upiId}

@@ -524,6 +524,9 @@ interface GroupCardProps {
   group: ContactGroup;
   onDeleteDebt: (id: string) => void;
   onPaidDebt: (id: string) => void;
+  onDeleteDebtItem: (debtId: string, itemId: string) => void;
+  onPaidDebtItem: (debtId: string, itemId: string) => void;
+  onEditDebtItem: (debtId: string, item: any) => void;
   onQR: (amount: number) => void;
   onBellPress: (debt: PendingDebt) => void;
 }
@@ -532,6 +535,9 @@ function GroupCard({
   group,
   onDeleteDebt,
   onPaidDebt,
+  onDeleteDebtItem,
+  onPaidDebtItem,
+  onEditDebtItem,
   onQR,
   onBellPress,
 }: GroupCardProps) {
@@ -570,6 +576,21 @@ function GroupCard({
     }
   };
 
+  const handlePaidItem = (debtId: string, itemId: string) => {
+    if (confirmationSettings.confirmMarkAsPaid) {
+      Alert.alert(t("confirmMarkAsPaidTitle"), t("confirmMarkAsPaidMsg"), [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("paid"),
+          style: "default",
+          onPress: () => onPaidDebtItem(debtId, itemId),
+        },
+      ]);
+    } else {
+      onPaidDebtItem(debtId, itemId);
+    }
+  };
+
   const handleDelete = (debtId: string) => {
     if (confirmationSettings.confirmDeletions) {
       Alert.alert(t("deletePendingTitle"), t("deletePendingMsg"), [
@@ -582,6 +603,21 @@ function GroupCard({
       ]);
     } else {
       onDeleteDebt(debtId);
+    }
+  };
+
+  const handleDeleteItem = (debtId: string, itemId: string) => {
+    if (confirmationSettings.confirmDeletions) {
+      Alert.alert(t("deletePendingTitle"), t("deletePendingMsg"), [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("delete"),
+          style: "destructive",
+          onPress: () => onDeleteDebtItem(debtId, itemId),
+        },
+      ]);
+    } else {
+      onDeleteDebtItem(debtId, itemId);
     }
   };
 
@@ -650,6 +686,21 @@ function GroupCard({
               <MaterialIcons name="qr-code" size={14} color={colors.primary} />
               <Text style={[styles.groupQrText, { color: colors.primary }]}>
                 {t("generateGroupQR")}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.groupPaidBtn,
+                {
+                  backgroundColor: "#2E7D3218",
+                  borderRadius: colors.radius,
+                },
+              ]}
+              onPress={() => handlePaid(group.key)}
+            >
+              <MaterialIcons name="check-circle" size={14} color="#2E7D32" />
+              <Text style={[styles.groupPaidText, { color: "#2E7D32" }]}>
+                Pay All
               </Text>
             </Pressable>
             <Pressable
@@ -777,6 +828,28 @@ function GroupCard({
                     style={[
                       styles.debtActionBtn,
                       {
+                        backgroundColor: colors.secondary,
+                        borderRadius: 8,
+                      },
+                    ]}
+                    onPress={() => onEditDebtItem(group.key, debt)}
+                    hitSlop={6}
+                  >
+                    <MaterialIcons
+                      name="edit"
+                      size={14}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={[styles.debtActionText, { color: colors.mutedForeground }]}
+                    >
+                      Edit
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.debtActionBtn,
+                      {
                         backgroundColor: colors.primary + "18",
                         borderRadius: 8,
                       },
@@ -800,7 +873,7 @@ function GroupCard({
                       styles.debtActionBtn,
                       { backgroundColor: "#2E7D3218", borderRadius: 8 },
                     ]}
-                    onPress={() => handlePaid(debt.id)}
+                    onPress={() => handlePaidItem(group.key, debt.id)}
                     hitSlop={6}
                   >
                     <MaterialIcons
@@ -836,7 +909,7 @@ function GroupCard({
                     />
                   </Pressable>
                   <Pressable
-                    onPress={() => handleDelete(debt.id)}
+                    onPress={() => handleDeleteItem(group.key, debt.id)}
                     hitSlop={8}
                     style={{ padding: 4 }}
                   >
@@ -864,12 +937,19 @@ export default function PendingTab() {
     deletePendingDebt,
     markPendingPaid,
     updatePendingDebt,
+    deletePendingItem,
+    markPendingItemPaid,
+    updatePendingItem,
   } = useData();
 
   const [showAdd, setShowAdd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [qrAmount, setQrAmount] = useState<number | null>(null);
   const [reminderDebt, setReminderDebt] = useState<PendingDebt | null>(null);
+  const [editingItem, setEditingItem] = useState<{
+    debtId: string;
+    item: any;
+  } | null>(null);
 
   const groups = useMemo(() => groupDebts(pendingDebts), [pendingDebts]);
   const totalOwed = useMemo(
@@ -925,12 +1005,12 @@ export default function PendingTab() {
         {groups.length === 0 ? (
           <View style={styles.empty}>
             <MaterialIcons
-              name="check-circle-outline"
+              name="assignment-turned-in"
               size={64}
-              color={colors.primary + "40"}
+              color={colors.mutedForeground + "44"}
             />
             <Text
-              style={[styles.emptyTitle, { color: colors.mutedForeground }]}
+              style={[styles.emptyTitle, { color: colors.foreground }]}
             >
               {t("noPending")}
             </Text>
@@ -945,6 +1025,9 @@ export default function PendingTab() {
               group={g}
               onDeleteDebt={deletePendingDebt}
               onPaidDebt={markPendingPaid}
+              onDeleteDebtItem={deletePendingItem}
+              onPaidDebtItem={markPendingItemPaid}
+              onEditDebtItem={(debtId, item) => setEditingItem({ debtId, item })}
               onQR={(amount) => setQrAmount(amount)}
               onBellPress={(debt) => setReminderDebt(debt)}
             />
@@ -983,7 +1066,137 @@ export default function PendingTab() {
         onClose={() => setReminderDebt(null)}
         onSave={handleReminderSave}
       />
+
+      <EditItemModal
+        visible={!!editingItem}
+        item={editingItem?.item}
+        onClose={() => setEditingItem(null)}
+        onSave={(updates) => {
+          if (editingItem) {
+            updatePendingItem(editingItem.debtId, editingItem.item.id, updates);
+          }
+          setEditingItem(null);
+        }}
+      />
     </View>
+  );
+}
+
+function EditItemModal({
+  visible,
+  item,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  item: any;
+  onClose: () => void;
+  onSave: (updates: any) => void;
+}) {
+  const { t } = useApp();
+  const colors = useColors();
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+
+  React.useEffect(() => {
+    if (visible && item) {
+      setAmount(String(item.amount));
+      setDescription(item.description || item.equipmentName || "");
+    }
+  }, [visible, item]);
+
+  const handleSave = () => {
+    const safeAmount = parseFloat(amount);
+    if (isNaN(safeAmount) || safeAmount <= 0) {
+      Alert.alert(t("missingField"), t("enterValidAmount"));
+      return;
+    }
+    onSave({ amount: safeAmount, description });
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.modalOverlay}
+      >
+        <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Edit Item
+            </Text>
+            <Pressable onPress={onClose}>
+              <MaterialIcons
+                name="close"
+                size={24}
+                color={colors.mutedForeground}
+              />
+            </Pressable>
+          </View>
+
+          <Text style={[styles.label, { color: colors.foreground }]}>
+            {t("amount")}
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                color: colors.foreground,
+                backgroundColor: colors.background,
+                borderRadius: colors.radius,
+              },
+            ]}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={colors.mutedForeground}
+          />
+
+          <Text style={[styles.label, { color: colors.foreground }]}>
+            {t("notes") || "Description"}
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                color: colors.foreground,
+                backgroundColor: colors.background,
+                borderRadius: colors.radius,
+              },
+            ]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="e.g. Extra hours"
+            placeholderTextColor={colors.mutedForeground}
+          />
+
+          <Pressable
+            style={[
+              styles.saveBtn,
+              { backgroundColor: colors.primary, borderRadius: colors.radius },
+            ]}
+            onPress={handleSave}
+          >
+            <Text
+              style={[
+                styles.saveBtnText,
+                { color: colors.primaryForeground },
+              ]}
+            >
+              {t("save")}
+            </Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -1084,6 +1297,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   groupQrText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  groupPaidBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  groupPaidText: {
     fontSize: 11,
     fontWeight: "700",
   },
@@ -1225,5 +1449,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalSheet: {
+    padding: 24,
+    borderRadius: 20,
+    gap: 12,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  saveBtn: {
+    marginTop: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  saveBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: -4,
+  },
+  input: {
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
   },
 });

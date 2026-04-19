@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Google from "expo-auth-session/providers/google";
+import * as GoogleSignin from "@react-native-google-signin/google-signin";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
@@ -24,6 +24,11 @@ import { TranslationKey } from "@/i18n/translations";
 
 const GOOGLE_WEB_CLIENT_ID =
   "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com";
+
+GoogleSignin.GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID,
+  offlineAccess: true,
+});
 
 interface Props {
   visible: boolean;
@@ -102,43 +107,23 @@ export function ProfileModal({ visible, onClose }: Props) {
     setUpiId(profile.upiId);
   }, [profile.name, profile.upiId, visible]);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_WEB_CLIENT_ID,
-    scopes: [
-      "openid",
-      "profile",
-      "email",
-      "https://www.googleapis.com/auth/drive.appdata",
-      "https://www.googleapis.com/auth/drive.file",
-    ],
-  });
-
-  useEffect(() => {
-    if (request?.redirectUri) {
-      console.log("[Google Auth] Redirect URI:", request.redirectUri);
-    }
-  }, [request?.redirectUri]);
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { authentication } = response;
-      if (authentication?.accessToken) {
-        fetchUserInfo(authentication.accessToken);
-      }
-    }
-  }, [response]);
-
-  const fetchUserInfo = async (accessToken: string) => {
+  const handleGoogleSignIn = async () => {
     try {
-      const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const user = await res.json();
-      await signIn(accessToken, user.email ?? "", user.name ?? profile.name);
-      showToast("signedInAs");
-    } catch {
-      showToast("syncError");
+      await GoogleSignin.GoogleSignin.hasPlayServices();
+      const { data } = await GoogleSignin.GoogleSignin.signIn();
+      if (data?.idToken) {
+        // Use tokens to fetch user info or perform backend auth
+        // For simplicity, we'll assume signIn context handles it
+        // If your signIn context needs an access token, use getTokens()
+        const tokens = await GoogleSignin.GoogleSignin.getTokens();
+        await signIn(tokens.accessToken, data.user.email ?? "", data.user.name ?? profile.name);
+        showToast("signedInAs");
+      }
+    } catch (error: any) {
+      console.error("[Google Auth Error]", error);
+      if (error.code !== GoogleSignin.statusCodes.SIGN_IN_CANCELLED) {
+        showToast("syncError");
+      }
     }
   };
 
@@ -282,8 +267,7 @@ export function ProfileModal({ visible, onClose }: Props) {
                   styles.googleBtn,
                   { borderColor: colors.border, borderRadius: colors.radius },
                 ]}
-                onPress={() => promptAsync()}
-                disabled={!request}
+                onPress={handleGoogleSignIn}
               >
                 <View style={styles.googleLogo}>
                   <Text style={styles.googleLogoG}>G</Text>

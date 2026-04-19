@@ -72,10 +72,18 @@ interface DataContextType {
   stopTimer: (equipmentId: string) => ActiveTimer | null;
 
   pendingDebts: PendingDebt[];
-  addPendingDebt: (debt: Omit<PendingDebt, "id" | "createdAt">) => void;
+  addPendingDebt: (debt: Omit<PendingDebt, "id" | "createdAt" | "lineItems" | "totalAmount"> & {
+    amount: number;
+    description: string;
+    source: PendingDebtItem["source"];
+    durationSeconds?: number;
+  }) => void;
   updatePendingDebt: (id: string, updates: Partial<Omit<PendingDebt, "id" | "createdAt">>) => void;
   deletePendingDebt: (id: string) => void;
   markPendingPaid: (id: string) => void;
+  deletePendingItem: (debtId: string, itemId: string) => void;
+  markPendingItemPaid: (debtId: string, itemId: string) => void;
+  updatePendingItem: (debtId: string, itemId: string, updates: Partial<PendingDebtItem>) => void;
 
   historyEntries: HistoryEntry[];
   addHistoryEntry: (entry: Omit<HistoryEntry, "id" | "createdAt">) => void;
@@ -387,6 +395,97 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [savePending, saveHistory]
   );
 
+  const deletePendingItem = useCallback(
+    (debtId: string, itemId: string) => {
+      setPendingDebts((prev) => {
+        const debt = prev.find((d) => d.id === debtId);
+        if (!debt) return prev;
+        const newLineItems = debt.lineItems.filter((li) => li.id !== itemId);
+        if (newLineItems.length === 0) {
+          const next = prev.filter((d) => d.id !== debtId);
+          savePending(next);
+          return next;
+        }
+        const updatedDebt: PendingDebt = {
+          ...debt,
+          lineItems: newLineItems,
+          totalAmount: newLineItems.reduce((sum, li) => sum + li.amount, 0),
+        };
+        const next = prev.map((d) => (d.id === debtId ? updatedDebt : d));
+        savePending(next);
+        return next;
+      });
+    },
+    [savePending]
+  );
+
+  const markPendingItemPaid = useCallback(
+    (debtId: string, itemId: string) => {
+      setPendingDebts((prev) => {
+        const debt = prev.find((d) => d.id === debtId);
+        if (!debt) return prev;
+        const item = debt.lineItems.find((li) => li.id === itemId);
+        if (!item) return prev;
+
+        // Add to history
+        const entry: Omit<HistoryEntry, "id" | "createdAt"> = {
+          type: "paid_debt",
+          title: debt.contactName,
+          amount: item.amount,
+          contactName: debt.contactName,
+          equipmentName: item.description,
+        };
+        const newEntry: HistoryEntry = {
+          ...entry,
+          id: makeId(),
+          createdAt: Date.now(),
+        };
+        setHistoryEntries((hPrev) => {
+          const next = [newEntry, ...hPrev];
+          saveHistory(next);
+          return next;
+        });
+
+        const newLineItems = debt.lineItems.filter((li) => li.id !== itemId);
+        if (newLineItems.length === 0) {
+          const next = prev.filter((d) => d.id !== debtId);
+          savePending(next);
+          return next;
+        }
+        const updatedDebt: PendingDebt = {
+          ...debt,
+          lineItems: newLineItems,
+          totalAmount: newLineItems.reduce((sum, li) => sum + li.amount, 0),
+        };
+        const next = prev.map((d) => (d.id === debtId ? updatedDebt : d));
+        savePending(next);
+        return next;
+      });
+    },
+    [savePending, saveHistory]
+  );
+
+  const updatePendingItem = useCallback(
+    (debtId: string, itemId: string, updates: Partial<PendingDebtItem>) => {
+      setPendingDebts((prev) => {
+        const debt = prev.find((d) => d.id === debtId);
+        if (!debt) return prev;
+        const newLineItems = debt.lineItems.map((li) =>
+          li.id === itemId ? { ...li, ...updates } : li
+        );
+        const updatedDebt: PendingDebt = {
+          ...debt,
+          lineItems: newLineItems,
+          totalAmount: newLineItems.reduce((sum, li) => sum + li.amount, 0),
+        };
+        const next = prev.map((d) => (d.id === debtId ? updatedDebt : d));
+        savePending(next);
+        return next;
+      });
+    },
+    [savePending]
+  );
+
   const deleteHistoryEntry = useCallback(
     (id: string) => {
       setHistoryEntries((prev) => {
@@ -415,6 +514,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updatePendingDebt,
         deletePendingDebt,
         markPendingPaid,
+        deletePendingItem,
+        markPendingItemPaid,
+        updatePendingItem,
         historyEntries,
         addHistoryEntry,
         deleteHistoryEntry,

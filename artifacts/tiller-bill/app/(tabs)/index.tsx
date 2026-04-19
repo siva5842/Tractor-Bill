@@ -73,9 +73,25 @@ export default function HomeTab() {
   };
 
   const handleStop = (equip: Equipment) => {
-    const timer = stopTimer(equip.id);
-    if (timer) {
-      setStopState({ timer, equipment: equip });
+    if (confirmationSettings.confirmExitTimer) {
+      Alert.alert(t("confirmExitTimer"), t("confirmExitTimerDesc"), [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("stop"),
+          style: "destructive",
+          onPress: () => {
+            const timer = stopTimer(equip.id);
+            if (timer) {
+              setStopState({ timer, equipment: equip });
+            }
+          },
+        },
+      ]);
+    } else {
+      const timer = stopTimer(equip.id);
+      if (timer) {
+        setStopState({ timer, equipment: equip });
+      }
     }
   };
 
