@@ -359,20 +359,22 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
         onCancel={() => setShowTimePicker(false)}
       />
 
-      <DateTimePicker
-        value={new Date()}
-        mode="date"
-        display={Platform.OS === "ios" ? "spinner" : "default"}
-        onChange={(event: any, selectedDate: any) => {
-          setShowDatePicker(false);
-          if (selectedDate) {
-            const day = selectedDate.getDate();
-            const month = selectedDate.getMonth() + 1;
-            const year = selectedDate.getFullYear();
-            setDateStr(`${day}/${month}/${year}`);
-          }
-        }}
-      />
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event: any, selectedDate: any) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              const day = selectedDate.getDate();
+              const month = selectedDate.getMonth() + 1;
+              const year = selectedDate.getFullYear();
+              setDateStr(`${day}/${month}/${year}`);
+            }
+          }}
+        />
+      )}
     </Modal>
   );
 }
