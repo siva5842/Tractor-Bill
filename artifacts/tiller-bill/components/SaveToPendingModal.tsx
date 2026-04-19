@@ -212,7 +212,8 @@ export function SaveToPendingModal({
       contactName: contactName.trim(),
       mobileNumber: mobileNumber.trim(),
       amount,
-      equipmentName,
+      description: equipmentName,
+      source: "Home Equipment",
       durationSeconds,
       reminderDate,
       notificationId,
@@ -538,7 +539,7 @@ export function SaveToPendingModal({
         onCancel={() => setShowTimePicker(false)}
       />
 
-      {showDatePicker && (
+      {showDatePicker && Platform.OS !== "web" && (
         <DateTimePicker
           value={new Date()}
           mode="date"
@@ -553,6 +554,48 @@ export function SaveToPendingModal({
             }
           }}
         />
+      )}
+
+      {showDatePicker && Platform.OS === "web" && (
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={styles.webPickerOverlay}>
+            <View style={[styles.webPickerCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.label, { color: colors.foreground, marginBottom: 10 }]}>
+                Select Date
+              </Text>
+              <input
+                type="date"
+                style={{
+                  padding: 10,
+                  fontSize: 16,
+                  borderRadius: 4,
+                  border: `1px solid ${colors.border}`,
+                  width: "100%",
+                  marginBottom: 20,
+                }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [y, m, d] = val.split("-");
+                    setReminderDateStr(`${parseInt(d)}/${parseInt(m)}/${y}`);
+                    setShowDatePicker(false);
+                  }
+                }}
+              />
+              <Pressable
+                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={{ color: colors.primaryForeground }}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       )}
     </Modal>
   );
@@ -746,5 +789,17 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
+  },
+  webPickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  webPickerCard: {
+    padding: 20,
+    width: "80%",
+    maxWidth: 300,
+    borderRadius: 12,
   },
 });

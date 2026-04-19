@@ -26,13 +26,21 @@ export interface ActiveTimer {
   status: TimerStatus;
 }
 
+export interface PendingDebtItem {
+  id: string;
+  amount: number;
+  description: string;
+  source: "Home Equipment" | "Pending List" | "Calculator";
+  timestamp: number;
+  durationSeconds?: number;
+}
+
 export interface PendingDebt {
   id: string;
   contactName: string;
   mobileNumber: string;
-  amount: number;
-  equipmentName?: string;
-  durationSeconds?: number;
+  lineItems: PendingDebtItem[];
+  totalAmount: number;
   reminderDate?: number;
   notificationId?: string;
   createdAt: number;
@@ -254,14 +262,55 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addPendingDebt = useCallback(
-    (debt: Omit<PendingDebt, "id" | "createdAt">) => {
-      const newDebt: PendingDebt = {
-        ...debt,
-        id: makeId(),
-        createdAt: Date.now(),
-      };
+    (
+      debtData: Omit<PendingDebt, "id" | "createdAt" | "lineItems" | "totalAmount"> & {
+        amount: number;
+        description: string;
+        source: PendingDebtItem["source"];
+        durationSeconds?: number;
+      }
+    ) => {
       setPendingDebts((prev) => {
-        const next = [newDebt, ...prev];
+        const cleanPhone = debtData.mobileNumber.replace(/\D/g, "");
+        const existingIndex = prev.findIndex((d) => {
+          const dPhone = d.mobileNumber.replace(/\D/g, "");
+          if (cleanPhone && dPhone) return cleanPhone === dPhone;
+          return d.contactName.trim().toLowerCase() === debtData.contactName.trim().toLowerCase();
+        });
+
+        const newLineItem: PendingDebtItem = {
+          id: makeId(),
+          amount: debtData.amount,
+          description: debtData.description,
+          source: debtData.source,
+          timestamp: Date.now(),
+          durationSeconds: debtData.durationSeconds,
+        };
+
+        let next;
+        if (existingIndex > -1) {
+          const existing = prev[existingIndex];
+          const updatedLineItems = [...existing.lineItems, newLineItem];
+          const updated: PendingDebt = {
+            ...existing,
+            lineItems: updatedLineItems,
+            totalAmount: updatedLineItems.reduce((sum, item) => sum + item.amount, 0),
+            createdAt: Date.now(), // Bring to top
+          };
+          next = [updated, ...prev.filter((_, i) => i !== existingIndex)];
+        } else {
+          const newDebt: PendingDebt = {
+            id: makeId(),
+            contactName: debtData.contactName,
+            mobileNumber: debtData.mobileNumber,
+            lineItems: [newLineItem],
+            totalAmount: debtData.amount,
+            reminderDate: debtData.reminderDate,
+            notificationId: debtData.notificationId,
+            createdAt: Date.now(),
+          };
+          next = [newDebt, ...prev];
+        }
         savePending(next);
         return next;
       });
@@ -315,10 +364,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const entry: Omit<HistoryEntry, "id" | "createdAt"> = {
             type: "paid_debt",
             title: debt.contactName,
-            amount: debt.amount,
+            amount: debt.totalAmount,
             contactName: debt.contactName,
-            equipmentName: debt.equipmentName,
-            durationSeconds: debt.durationSeconds,
+            equipmentName: debt.lineItems.map(li => li.description).join(", "),
           };
           const newEntry: HistoryEntry = {
             ...entry,

@@ -10,16 +10,27 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
+import { View, Text, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ErrorBoundary as AppErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { DataProvider } from "@/context/DataContext";
 
 SplashScreen.preventAutoHideAsync();
+
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) { 
+  return ( 
+    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}> 
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'red' }}>FATAL CRASH:</Text> 
+      <Text>{error.message}</Text> 
+      <Text style={{ marginTop: 10 }}>{error.stack}</Text> 
+    </View> 
+  ); 
+}
 
 const FONT_TIMEOUT_MS = 6000;
 
@@ -48,7 +59,9 @@ export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
-    WebBrowser.maybeCompleteAuthSession();
+    if (Platform.OS !== "web") {
+      WebBrowser.maybeCompleteAuthSession();
+    }
     let timer: NodeJS.Timeout;
     
     async function prepare() {
@@ -82,7 +95,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
+      <AppErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
@@ -94,7 +107,7 @@ export default function RootLayout() {
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
-      </ErrorBoundary>
+      </AppErrorBoundary>
     </SafeAreaProvider>
   );
 }

@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useRef } from "react";
+import React from "react";
 import {
   Linking,
   Modal,
@@ -16,7 +16,10 @@ import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 function buildUPIString(upiId: string, name: string, amount: number) {
-  return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount.toFixed(2)}&cu=INR`;
+  const safeUpiId = upiId.trim().replace(/\s/g, "");
+  const safeName = encodeURIComponent(name.trim());
+  const safeAmount = Number(amount).toFixed(2);
+  return `upi://pay?pa=${safeUpiId}&pn=${safeName}&am=${safeAmount}&cu=INR`;
 }
 
 function generateQRSvg(data: string, size: number): string {

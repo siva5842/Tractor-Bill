@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { Platform } from "react-native";
 
 import { Language, translations, TranslationKey } from "@/i18n/translations";
 
@@ -82,10 +83,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId:
-        "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com",
-    });
+    if (Platform.OS !== "web") {
+      GoogleSignin.configure({
+        webClientId:
+          "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com",
+      });
+    }
 
     (async () => {
       try {

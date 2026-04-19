@@ -36,24 +36,34 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
   const [showAddPending, setShowAddPending] = useState(false);
 
   const calculate = () => {
-    if (!rate.trim()) {
-      Alert.alert(t("missingField"), t("enterValidRate"));
-      return;
+    try {
+      const safeRate = Number(rate) || 0;
+      const safeHours = Number(hours) || 0;
+      const safeMinutes = Number(minutes) || 0;
+
+      if (safeRate <= 0) {
+        Alert.alert(t("missingField"), t("enterValidRate"));
+        return;
+      }
+      if (safeHours === 0 && safeMinutes === 0) {
+        Alert.alert(t("missingField"), t("enterHoursOrMinutes"));
+        return;
+      }
+
+      const totalHours = safeHours + safeMinutes / 60;
+      const calcResult = safeRate * totalHours;
+
+      if (isNaN(calcResult) || !isFinite(calcResult)) {
+        throw new Error("Calculation resulted in invalid number");
+      }
+
+      setResult(Number(calcResult.toFixed(2)));
+      setSavedToast(false);
+    } catch (error) {
+      console.error("Calculator Error:", error);
+      Alert.alert("Error", "Something went wrong during calculation.");
+      setResult(0);
     }
-    const r = parseFloat(rate);
-    if (isNaN(r) || r <= 0) {
-      Alert.alert(t("missingField"), t("enterValidRate"));
-      return;
-    }
-    const h = parseFloat(hours) || 0;
-    const m = parseFloat(minutes) || 0;
-    if (h === 0 && m === 0) {
-      Alert.alert(t("missingField"), t("enterHoursOrMinutes"));
-      return;
-    }
-    const totalHours = h + m / 60;
-    setResult(r * totalHours);
-    setSavedToast(false);
   };
 
   const reset = () => {
@@ -81,7 +91,18 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
 
   const handleAddToPending = () => {
     if (result === null || result <= 0) return;
-    setShowAddPending(true);
+    
+    // Auto-save to pending via DataContext
+    addPendingDebt({
+      contactName: "Calculator Customer",
+      mobileNumber: "0000000000",
+      amount: result,
+      description: `${t("rate")}: ₹${rate}/hr`,
+      source: "Calculator",
+    });
+    
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2500);
   };
 
   return (
@@ -128,7 +149,7 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                 },
               ]}
               value={rate}
-              onChangeText={setRate}
+              onChangeText={(text) => setRate(text.replace(/[^0-9.]/g, ""))}
               placeholder={t("ratePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="decimal-pad"
@@ -150,7 +171,7 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                     },
                   ]}
                   value={hours}
-                  onChangeText={setHours}
+                  onChangeText={(text) => setHours(text.replace(/[^0-9]/g, ""))}
                   placeholder="0"
                   placeholderTextColor={colors.mutedForeground}
                   keyboardType="number-pad"
@@ -171,7 +192,7 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                     },
                   ]}
                   value={minutes}
-                  onChangeText={setMinutes}
+                  onChangeText={(text) => setMinutes(text.replace(/[^0-9]/g, ""))}
                   placeholder="0"
                   placeholderTextColor={colors.mutedForeground}
                   keyboardType="number-pad"

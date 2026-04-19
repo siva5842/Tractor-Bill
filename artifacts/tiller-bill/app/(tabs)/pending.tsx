@@ -39,23 +39,23 @@ interface ContactGroup {
 }
 
 function groupDebts(debts: PendingDebt[]): ContactGroup[] {
-  const map = new Map<string, ContactGroup>();
-  debts.forEach((d) => {
-    const key = `${d.contactName.trim().toLowerCase()}||${d.mobileNumber.replace(/\D/g, "")}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        contactName: d.contactName,
-        mobileNumber: d.mobileNumber,
-        debts: [],
-        total: 0,
-      });
-    }
-    const g = map.get(key)!;
-    g.debts.push(d);
-    g.total += d.amount;
-  });
-  return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  if (!debts || !Array.isArray(debts)) return [];
+  
+  return debts.map(d => ({
+    key: d.id,
+    contactName: d.contactName || "Unknown",
+    mobileNumber: d.mobileNumber || "",
+    debts: (d.lineItems || []).map(li => ({
+      ...li,
+      id: li.id,
+      contactName: d.contactName || "Unknown",
+      mobileNumber: d.mobileNumber || "",
+      amount: li.amount || 0,
+      equipmentName: li.description || "",
+      createdAt: li.timestamp || Date.now(),
+    })),
+    total: d.totalAmount || 0,
+  })).sort((a, b) => (b.total || 0) - (a.total || 0));
 }
 
 function formatDate(ts?: number) {
@@ -359,7 +359,7 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
         onCancel={() => setShowTimePicker(false)}
       />
 
-      {showDatePicker && (
+      {showDatePicker && Platform.OS !== "web" && (
         <DateTimePicker
           value={new Date()}
           mode="date"
@@ -374,6 +374,48 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
             }
           }}
         />
+      )}
+
+      {showDatePicker && Platform.OS === "web" && (
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={reminderStyles.overlay}>
+            <View style={[reminderStyles.sheet, { backgroundColor: colors.card, justifyContent: 'center' }]}>
+              <Text style={[reminderStyles.label, { color: colors.foreground, marginBottom: 10 }]}>
+                Select Date
+              </Text>
+              <input
+                type="date"
+                style={{
+                  padding: 10,
+                  fontSize: 16,
+                  borderRadius: 4,
+                  border: `1px solid ${colors.border}`,
+                  width: "100%",
+                  marginBottom: 20,
+                }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [y, m, d] = val.split("-");
+                    setDateStr(`${parseInt(d)}/${parseInt(m)}/${y}`);
+                    setShowDatePicker(false);
+                  }
+                }}
+              />
+              <Pressable
+                style={[reminderStyles.saveBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={{ color: colors.primaryForeground }}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       )}
     </Modal>
   );
@@ -698,6 +740,13 @@ function GroupCard({
                     {debt.equipmentName}
                   </Text>
                 )}
+                <View style={styles.sourceBadgeRow}>
+                  <View style={[styles.sourceBadge, { backgroundColor: colors.secondary }]}>
+                    <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>
+                      {debt.source || "Manual"}
+                    </Text>
+                  </View>
+                </View>
                 {!!debt.reminderDate && (
                   <View style={styles.reminderRow}>
                     <MaterialIcons
@@ -824,7 +873,7 @@ export default function PendingTab() {
 
   const groups = useMemo(() => groupDebts(pendingDebts), [pendingDebts]);
   const totalOwed = useMemo(
-    () => pendingDebts.reduce((sum, d) => sum + d.amount, 0),
+    () => pendingDebts.reduce((sum, d) => sum + d.totalAmount, 0),
     [pendingDebts],
   );
   const count = groups.length;
@@ -1101,6 +1150,32 @@ const styles = StyleSheet.create({
   debtAmount: {
     fontSize: 18,
     fontWeight: "800",
+  },
+  sourceBadgeRow: {
+    flexDirection: "row",
+    marginTop: 1,
+  },
+  sourceBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  sourceText: {
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  webPickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  webPickerCard: {
+    padding: 20,
+    width: "80%",
+    maxWidth: 300,
+    borderRadius: 12,
   },
   debtActions: {
     flexDirection: "row",

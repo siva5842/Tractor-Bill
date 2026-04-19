@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   Image,
@@ -17,7 +17,7 @@ import {
 } from "react-native";
 
 import { useApp } from "@/context/AppContext";
-import { useData } from "@/context/DataContext";
+import { Equipment, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 
 interface Props {

@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
   FlatList,
@@ -53,15 +53,19 @@ export default function HomeTab() {
   const [pendingState, setPendingState] = useState<PendingState>(null);
 
   const handleStart = (equip: Equipment) => {
-    if (!timerSettings.allowSimultaneousTimers) {
+    console.log("Starting timer for:", equip.name, "allowSimultaneousTimers:", timerSettings.allowSimultaneousTimers);
+    
+    const currentActiveCount = Object.values(activeTimers).filter(t => t.status === "running").length;
+
+    if (timerSettings.allowSimultaneousTimers === false && currentActiveCount > 0) {
       const runningEntry = Object.values(activeTimers).find(
         (timer) => timer.status === "running" && timer.equipmentId !== equip.id
       );
       if (runningEntry) {
         const runningEquip = equipment.find((e) => e.id === runningEntry.equipmentId);
         const name = runningEquip?.name ?? "another equipment";
-        const msg = t("timerBlockedMsg").replace("{name}", name);
-        Alert.alert(t("timerBlockedTitle"), msg, [{ text: t("cancel"), style: "cancel" }]);
+        const msg = t("timerBlockedMsg")?.replace("{name}", name) ?? `Stop the current timer for ${name} first.`;
+        Alert.alert(t("timerBlockedTitle") ?? "Timer Running", msg, [{ text: t("cancel") ?? "OK", style: "cancel" }]);
         return;
       }
     }
