@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import React, {
   createContext,
   useCallback,
@@ -81,6 +82,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    GoogleSignin.configure({
+      webClientId:
+        "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com",
+    });
+
     (async () => {
       try {
         const [lang, profileStr, qr, onboarding, confirmStr, timerStr] =

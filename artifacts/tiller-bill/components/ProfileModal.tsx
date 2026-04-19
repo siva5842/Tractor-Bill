@@ -22,8 +22,6 @@ import { useColors } from "@/hooks/useColors";
 import { backupToDrive, restoreFromDrive } from "@/services/googleDriveSync";
 import { TranslationKey } from "@/i18n/translations";
 
-WebBrowser.maybeCompleteAuthSession();
-
 const GOOGLE_WEB_CLIENT_ID =
   "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com";
 

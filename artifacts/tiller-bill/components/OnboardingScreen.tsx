@@ -19,11 +19,6 @@ import { useApp } from "@/context/AppContext";
 import { Language } from "@/i18n/translations";
 import { useColors } from "@/hooks/useColors";
 
-GoogleSignin.configure({
-  webClientId:
-    "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com",
-});
-
 const { width: SCREEN_W } = Dimensions.get("window");
 
 const LANGUAGES: {
