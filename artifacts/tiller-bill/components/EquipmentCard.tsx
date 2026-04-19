@@ -22,6 +22,7 @@ interface Props {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }
 
@@ -32,6 +33,7 @@ export function EquipmentCard({
   onPause,
   onResume,
   onStop,
+  onEdit,
   onDelete,
 }: Props) {
   const { t } = useApp();
@@ -155,9 +157,14 @@ export function EquipmentCard({
               </View>
             )}
             {!isActive && (
-              <Pressable onPress={onDelete} style={styles.deleteBtn} hitSlop={8}>
-                <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
-              </Pressable>
+              <View style={styles.idleActions}>
+                <Pressable onPress={onEdit} style={styles.actionIcon} hitSlop={8}>
+                  <MaterialIcons name="edit" size={20} color={colors.primary} />
+                </Pressable>
+                <Pressable onPress={onDelete} style={styles.actionIcon} hitSlop={8}>
+                  <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
+                </Pressable>
+              </View>
             )}
           </View>
         </View>
@@ -245,8 +252,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  deleteBtn: {
-    padding: 4,
+  idleActions: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  actionIcon: {
+    padding: 6,
   },
   earningsRow: {
     flexDirection: "row",

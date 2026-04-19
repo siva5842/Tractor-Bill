@@ -54,6 +54,7 @@ export interface HistoryEntry {
 interface DataContextType {
   equipment: Equipment[];
   addEquipment: (eq: Omit<Equipment, "id" | "createdAt">) => void;
+  updateEquipment: (id: string, updates: Partial<Omit<Equipment, "id" | "createdAt">>) => void;
   deleteEquipment: (id: string) => void;
 
   activeTimers: Record<string, ActiveTimer>;
@@ -134,6 +135,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const newEq: Equipment = { ...eq, id: makeId(), createdAt: Date.now() };
       setEquipment((prev) => {
         const next = [newEq, ...prev];
+        saveEquipment(next);
+        return next;
+      });
+    },
+    [saveEquipment]
+  );
+
+  const updateEquipment = useCallback(
+    (id: string, updates: Partial<Omit<Equipment, "id" | "createdAt">>) => {
+      setEquipment((prev) => {
+        const next = prev.map((e) => (e.id === id ? { ...e, ...updates } : e));
         saveEquipment(next);
         return next;
       });
@@ -343,6 +355,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       value={{
         equipment,
         addEquipment,
+        updateEquipment,
         deleteEquipment,
         activeTimers,
         startTimer,

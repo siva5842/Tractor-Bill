@@ -23,16 +23,25 @@ import { useColors } from "@/hooks/useColors";
 interface Props {
   visible: boolean;
   onClose: () => void;
+  editEquipment?: Equipment;
 }
 
-export function AddEquipmentModal({ visible, onClose }: Props) {
+export function AddEquipmentModal({ visible, onClose, editEquipment }: Props) {
   const { t } = useApp();
   const colors = useColors();
-  const { addEquipment } = useData();
+  const { addEquipment, updateEquipment } = useData();
 
   const [name, setName] = useState("");
   const [rate, setRate] = useState("");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible && editEquipment) {
+      setName(editEquipment.name);
+      setRate(editEquipment.hourlyRate.toString());
+      setPhotoUri(editEquipment.photoUri || null);
+    }
+  }, [visible, editEquipment]);
 
   const pickFromGallery = async () => {
     try {
@@ -96,15 +105,21 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
     }
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addEquipment({
-      name: name.trim(),
-      hourlyRate: rateNum,
-      photoUri: photoUri || undefined,
-    });
-    setName("");
-    setRate("");
-    setPhotoUri(null);
-    onClose();
+
+    if (editEquipment) {
+      updateEquipment(editEquipment.id, {
+        name: name.trim(),
+        hourlyRate: rateNum,
+        photoUri: photoUri || undefined,
+      });
+    } else {
+      addEquipment({
+        name: name.trim(),
+        hourlyRate: rateNum,
+        photoUri: photoUri || undefined,
+      });
+    }
+    handleClose();
   };
 
   const handleClose = () => {
@@ -128,7 +143,7 @@ export function AddEquipmentModal({ visible, onClose }: Props) {
         <View style={[styles.sheet, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.foreground }]}>
-              {t("addEquipment")}
+              {editEquipment ? t("edit") || "Edit Equipment" : t("addEquipment")}
             </Text>
             <Pressable onPress={handleClose} hitSlop={12}>
               <MaterialIcons

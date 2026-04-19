@@ -16,8 +16,7 @@ import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 function buildUPIString(upiId: string, name: string, amount: number) {
-  const encoded = encodeURIComponent;
-  return `upi://pay?pa=${encoded(upiId)}&pn=${encoded(name)}&am=${amount.toFixed(2)}&cu=INR`;
+  return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount.toFixed(2)}&cu=INR`;
 }
 
 function generateQRSvg(data: string, size: number): string {

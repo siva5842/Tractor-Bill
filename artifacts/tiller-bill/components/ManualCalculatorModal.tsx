@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 
+import { AddPendingModal } from "@/components/AddPendingModal";
 import { useApp } from "@/context/AppContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
@@ -32,9 +33,7 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
   const [minutes, setMinutes] = useState("");
   const [result, setResult] = useState<number | null>(null);
   const [savedToast, setSavedToast] = useState(false);
-  const [showPendingForm, setShowPendingForm] = useState(false);
-  const [pendingName, setPendingName] = useState("");
-  const [pendingNotes, setPendingNotes] = useState("");
+  const [showAddPending, setShowAddPending] = useState(false);
 
   const calculate = () => {
     if (!rate.trim()) {
@@ -63,9 +62,7 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
     setMinutes("");
     setResult(null);
     setSavedToast(false);
-    setShowPendingForm(false);
-    setPendingName("");
-    setPendingNotes("");
+    setShowAddPending(false);
   };
 
   const handleSaveToHistory = () => {
@@ -83,28 +80,8 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
   };
 
   const handleAddToPending = () => {
-    if (!pendingName.trim()) {
-      Alert.alert(t("missingField"), t("enterContactName"));
-      return;
-    }
     if (result === null || result <= 0) return;
-    addPendingDebt({
-      contactName: pendingName.trim(),
-      mobileNumber: pendingNotes.trim(),
-      amount: result,
-    });
-    setSavedToast(true);
-    setTimeout(() => {
-      setSavedToast(false);
-      setShowPendingForm(false);
-      setPendingName("");
-      setPendingNotes("");
-    }, 2000);
-  };
-
-  const openPendingForm = () => {
-    if (result === null) return;
-    setShowPendingForm(true);
+    setShowAddPending(true);
   };
 
   return (
@@ -273,7 +250,7 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                     </Text>
                   </Pressable>
                   <Pressable
-                    onPress={openPendingForm}
+                    onPress={handleAddToPending}
                     style={[
                       styles.pendingBtn,
                       {
@@ -307,98 +284,15 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
                 </View>
               </View>
             )}
-
-            {result !== null && showPendingForm && (
-              <View
-                style={[
-                  styles.pendingFormBox,
-                  {
-                    backgroundColor: colors.secondary,
-                    borderRadius: colors.radius,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.pendingFormTitle,
-                    { color: colors.foreground },
-                  ]}
-                >
-                  {t("addToPending") || "Add to Pending List"}
-                </Text>
-                <Text style={[styles.label, { color: colors.foreground }]}>
-                  {t("contactName")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: colors.border,
-                      color: colors.foreground,
-                      backgroundColor: colors.background,
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                  value={pendingName}
-                  onChangeText={setPendingName}
-                  placeholder={t("contactName")}
-                  placeholderTextColor={colors.mutedForeground}
-                />
-                <Text style={[styles.label, { color: colors.foreground }]}>
-                  {t("notes") || "Notes"}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: colors.border,
-                      color: colors.foreground,
-                      backgroundColor: colors.background,
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                  value={pendingNotes}
-                  onChangeText={setPendingNotes}
-                  placeholder={t("notes") || "Details/Notes"}
-                  placeholderTextColor={colors.mutedForeground}
-                />
-                <Text style={[styles.pendingAmount, { color: colors.primary }]}>
-                  {t("amount")}: ₹{result.toFixed(2)}
-                </Text>
-                <View style={styles.pendingFormActions}>
-                  <Pressable
-                    onPress={handleAddToPending}
-                    style={[
-                      styles.submitBtn,
-                      {
-                        backgroundColor: colors.accent,
-                        borderRadius: colors.radius,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.submitBtnText, { color: "#fff" }]}>
-                      {t("save")}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setShowPendingForm(false)}
-                    style={[styles.cancelBtn, { borderRadius: colors.radius }]}
-                  >
-                    <Text
-                      style={[
-                        styles.cancelBtnText,
-                        { color: colors.mutedForeground },
-                      ]}
-                    >
-                      {t("cancel")}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      <AddPendingModal
+        visible={showAddPending}
+        onClose={() => setShowAddPending(false)}
+        initialAmount={result?.toFixed(2)}
+      />
     </Modal>
   );
 }

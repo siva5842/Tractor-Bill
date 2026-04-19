@@ -2,12 +2,11 @@
   "expo": {
     "name": "Tractor Bill",
     "slug": "tiller-bill",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": [
-      "tiller-bill",
-      "com.googleusercontent.apps.234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm"
+      "tiller-bill"
     ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -29,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2E7D32"
       },
-      "package": "com.sivaprakashamp.tractorbill",
+      "package": "com.tractorbill.app",
       "permissions": [
         "android.permission.NOTIFICATIONS",
         "android.permission.VIBRATE",

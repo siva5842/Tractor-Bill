@@ -45,6 +45,7 @@ export default function HomeTab() {
     useData();
 
   const [showAddEquip, setShowAddEquip] = useState(false);
+  const [editTarget, setEditTarget] = useState<Equipment | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Equipment | null>(null);
   const [stopState, setStopState] = useState<StopState>(null);
@@ -156,6 +157,7 @@ export default function HomeTab() {
             onPause={() => pauseTimer(item.id)}
             onResume={() => resumeTimer(item.id)}
             onStop={() => handleStop(item)}
+            onEdit={() => setEditTarget(item)}
             onDelete={() => handleDeleteRequest(item)}
           />
         )}
@@ -172,8 +174,12 @@ export default function HomeTab() {
       </Pressable>
 
       <AddEquipmentModal
-        visible={showAddEquip}
-        onClose={() => setShowAddEquip(false)}
+        visible={showAddEquip || !!editTarget}
+        onClose={() => {
+          setShowAddEquip(false);
+          setEditTarget(null);
+        }}
+        editEquipment={editTarget || undefined}
       />
 
       <ProfileModal

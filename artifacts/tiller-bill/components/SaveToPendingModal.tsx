@@ -97,9 +97,6 @@ export function SaveToPendingModal({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showContactPicker, setShowContactPicker] = useState(false);
-  const [contactSearch, setContactSearch] = useState("");
-  const [allContacts, setAllContacts] = useState<Contacts.Contact[]>([]);
 
   const uniqueContacts = useMemo(() => {
     const seen = new Map<string, { name: string; phone: string }>();
@@ -143,31 +140,20 @@ export function SaveToPendingModal({
         ]);
         return;
       }
-      const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers],
-        sort: Contacts.SortTypes.FirstName,
-      });
-      if (data.length > 0) {
-        setAllContacts(data);
-        setContactSearch("");
-        setShowContactPicker(true);
+      const contact = await Contacts.presentContactPickerAsync();
+      if (contact) {
+        setContactName(contact.name || "");
+        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+          setMobileNumber(
+            contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
+          );
+        }
+        setShowSuggestions(false);
       }
-    } catch {}
+    } catch (err) {
+      console.error("Error picking contact:", err);
+    }
   };
-
-  const filteredContacts = useMemo(() => {
-    if (!contactSearch.trim()) return allContacts.slice(0, 50);
-    const lower = contactSearch.trim().toLowerCase();
-    return allContacts
-      .filter((c) => {
-        const nameMatch = c.name?.toLowerCase().includes(lower);
-        const phoneMatch = c.phoneNumbers?.some((p) =>
-          p.number?.replace(/\D/g, "").includes(lower),
-        );
-        return nameMatch || phoneMatch;
-      })
-      .slice(0, 50);
-  }, [contactSearch, allContacts]);
 
   const handleSave = async () => {
     if (!contactName.trim()) {
@@ -552,102 +538,22 @@ export function SaveToPendingModal({
         onCancel={() => setShowTimePicker(false)}
       />
 
-      <Modal
-        visible={showContactPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowContactPicker(false)}
-      >
-        <View style={styles.contactOverlay}>
-          <View style={[styles.contactSheet, { backgroundColor: colors.card }]}>
-            <View style={styles.contactHeader}>
-              <Text style={[styles.title, { color: colors.foreground }]}>
-                {t("pickFromContacts")}
-              </Text>
-              <Pressable
-                onPress={() => setShowContactPicker(false)}
-                hitSlop={12}
-              >
-                <MaterialIcons
-                  name="close"
-                  size={26}
-                  color={colors.mutedForeground}
-                />
-              </Pressable>
-            </View>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                  backgroundColor: colors.background,
-                  borderRadius: colors.radius,
-                },
-              ]}
-              value={contactSearch}
-              onChangeText={setContactSearch}
-              placeholder="Search contacts..."
-              placeholderTextColor={colors.mutedForeground}
-            />
-            <ScrollView style={styles.contactList}>
-              {filteredContacts.map((c) => (
-                <Pressable
-                  key={c.name + (c.phoneNumbers?.[0]?.number || "")}
-                  style={[
-                    styles.contactItem,
-                    { borderBottomColor: colors.border },
-                  ]}
-                  onPress={() => {
-                    setContactName(c.name || "");
-                    setMobileNumber(
-                      c.phoneNumbers?.[0]?.number?.replace(/\s/g, "") || "",
-                    );
-                    setShowContactPicker(false);
-                    setShowSuggestions(false);
-                  }}
-                >
-                  <MaterialIcons
-                    name="person"
-                    size={20}
-                    color={colors.primary}
-                  />
-                  <View style={styles.contactInfo}>
-                    <Text
-                      style={[styles.contactName, { color: colors.foreground }]}
-                    >
-                      {c.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.contactPhone,
-                        { color: colors.mutedForeground },
-                      ]}
-                    >
-                      {c.phoneNumbers?.[0]?.number || ""}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      <DateTimePicker
-        value={new Date()}
-        mode="date"
-        display={Platform.OS === "ios" ? "spinner" : "default"}
-        onChange={(event: any, selectedDate: any) => {
-          setShowDatePicker(false);
-          if (selectedDate) {
-            const day = selectedDate.getDate();
-            const month = selectedDate.getMonth() + 1;
-            const year = selectedDate.getFullYear();
-            setReminderDateStr(`${day}/${month}/${year}`);
-          }
-        }}
-      />
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event: any, selectedDate: any) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              const day = selectedDate.getDate();
+              const month = selectedDate.getMonth() + 1;
+              const year = selectedDate.getFullYear();
+              setReminderDateStr(`${day}/${month}/${year}`);
+            }
+          }}
+        />
+      )}
     </Modal>
   );
 }
