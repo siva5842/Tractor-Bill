@@ -14,6 +14,7 @@ import {
 import { AddEquipmentModal } from "@/components/AddEquipmentModal";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { EquipmentCard } from "@/components/EquipmentCard";
+import { ManualCalculatorModal } from "@/components/ManualCalculatorModal";
 import { ProfileModal } from "@/components/ProfileModal";
 import { QRCodeModal } from "@/components/QRCodeModal";
 import { SaveToPendingModal } from "@/components/SaveToPendingModal";
@@ -22,6 +23,7 @@ import { TopAppBar } from "@/components/TopAppBar";
 import { useApp } from "@/context/AppContext";
 import { ActiveTimer, Equipment, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { AddPendingModal } from "@/components/AddPendingModal";
 
 type StopState = {
   timer: ActiveTimer;
@@ -51,6 +53,8 @@ export default function HomeTab() {
   const [stopState, setStopState] = useState<StopState>(null);
   const [qrState, setQrState] = useState<QRState>(null);
   const [pendingState, setPendingState] = useState<PendingState>(null);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcPendingAmount, setCalcPendingAmount] = useState<number | null>(null);
 
   const handleStart = (equip: Equipment) => {
     console.log("Starting timer for:", equip.name, "allowSimultaneousTimers:", timerSettings.allowSimultaneousTimers);
@@ -151,7 +155,10 @@ export default function HomeTab() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <TopAppBar onProfilePress={() => setShowProfile(true)} />
+      <TopAppBar
+        onProfilePress={() => setShowProfile(true)}
+        onCalculatorPress={() => setShowCalculator(true)}
+      />
 
       <FlatList
         data={equipment}
@@ -244,6 +251,21 @@ export default function HomeTab() {
           onClose={() => setPendingState(null)}
         />
       )}
+
+      <ManualCalculatorModal
+        visible={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        onSaveToPending={(amount) => {
+          setCalcPendingAmount(amount);
+          setShowCalculator(false);
+        }}
+      />
+
+      <AddPendingModal
+        visible={calcPendingAmount !== null}
+        onClose={() => setCalcPendingAmount(null)}
+        initialAmount={calcPendingAmount?.toString()}
+      />
     </View>
   );
 }

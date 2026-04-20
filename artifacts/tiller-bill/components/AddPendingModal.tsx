@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   Text,
   TextInput,
   View,
+  Image,
 } from "react-native";
 
 import { AnalogTimePicker } from "@/components/AnalogTimePicker";
@@ -74,7 +76,10 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
 
   const [contactName, setContactName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
   const [amount, setAmount] = useState(initialAmount || "");
+  const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
+  const [discountValue, setDiscountValue] = useState("");
   const [wantsReminder, setWantsReminder] = useState(false);
   const [reminderDateStr, setReminderDateStr] = useState("");
   const [reminderHours, setReminderHours] = useState(9);
@@ -115,6 +120,25 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
     }
   }, [visible, initialAmount]);
 
+  const pickProfilePic = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setProfilePic(result.assets[0].uri);
+    }
+  };
+
   const pickContact = async () => {
     if (Platform.OS === "web") return;
     try {
@@ -123,7 +147,13 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
         Alert.alert(t("contactsPermission"));
         return;
       }
-      const contact = await Contacts.presentContactPickerAsync();
+      const contact = await Contacts.presentContactPickerAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Image,
+        ],
+      });
       if (contact) {
         setContactName(contact.name || "");
         if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
@@ -131,10 +161,24 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
             contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
           );
         }
+        if (contact.imageAvailable && contact.image?.uri) {
+          setProfilePic(contact.image.uri);
+        }
         setShowSuggestions(false);
       }
     } catch (err) {
       console.error("Error picking contact:", err);
+    }
+  };
+
+  const handleDateParsing = (text: string) => {
+    let raw = text.replace(/[^0-9]/g, "");
+    if (raw.length === 8) {
+      const formatted =
+        raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
+      setReminderDateStr(formatted);
+    } else {
+      setReminderDateStr(text);
     }
   };
 
@@ -156,10 +200,20 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
       Alert.alert(t("missingField"), t("enterValidAmount"));
       return;
     }
-    const amt = parseFloat(amount);
-    if (isNaN(amt) || amt <= 0) {
+    const baseAmt = parseFloat(amount);
+    if (isNaN(baseAmt) || baseAmt <= 0) {
       Alert.alert(t("missingField"), t("enterValidAmount"));
       return;
+    }
+
+    let finalAmount = baseAmt;
+    const dv = parseFloat(discountValue) || 0;
+    if (dv > 0) {
+      if (discountType === "flat") {
+        finalAmount = Math.max(0, baseAmt - dv);
+      } else {
+        finalAmount = Math.max(0, baseAmt - (baseAmt * dv) / 100);
+      }
     }
 
     let reminderDate: number | undefined;
@@ -187,10 +241,10 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
       const schedId = await scheduleDebtReminder({
         debtId: Date.now().toString(),
         contactName: contactName.trim(),
-        amount: amt,
+        amount: finalAmount,
         date: dateObj,
         title: t("paymentReminder"),
-        body: `${contactName.trim()} ${t("owesYou")} ₹${amt.toFixed(2)}`,
+        body: `${contactName.trim()} ${t("owesYou")} ₹${finalAmount.toFixed(2)}`,
       });
       if (schedId) notificationId = schedId;
     }
@@ -201,7 +255,8 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
     addPendingDebt({
       contactName: contactName.trim(),
       mobileNumber: mobileNumber.trim(),
-      amount: amt,
+      profilePic,
+      amount: finalAmount,
       description: "Manual Entry",
       source: "Pending List",
       reminderDate,
@@ -244,6 +299,36 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <View style={styles.photoSection}>
+              <Pressable
+                onPress={pickProfilePic}
+                style={[
+                  styles.photoBtn,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {profilePic ? (
+                  <Image
+                    source={{ uri: profilePic }}
+                    style={styles.profilePic}
+                  />
+                ) : (
+                  <MaterialIcons
+                    name="add-a-photo"
+                    size={32}
+                    color={colors.primary}
+                  />
+                )}
+              </Pressable>
+              <Text
+                style={[styles.photoLabel, { color: colors.mutedForeground }]}
+              >
+                {profilePic ? t("addPhoto") : t("addPhoto")}
+              </Text>
+            </View>
             <Pressable
               style={[
                 styles.contactPickBtn,
@@ -378,6 +463,104 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
               keyboardType="decimal-pad"
             />
 
+            <View style={styles.discountContainer}>
+              <Text style={[styles.label, { color: colors.foreground }]}>
+                {t("discount")}
+              </Text>
+              <View style={styles.discountRow}>
+                <Pressable
+                  style={[
+                    styles.discountTypeBtn,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor:
+                        discountType === "flat"
+                          ? colors.primary
+                          : colors.background,
+                      borderTopLeftRadius: colors.radius,
+                      borderBottomLeftRadius: colors.radius,
+                    },
+                  ]}
+                  onPress={() => setDiscountType("flat")}
+                >
+                  <Text
+                    style={{
+                      color:
+                        discountType === "flat"
+                          ? colors.primaryForeground
+                          : colors.foreground,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ₹
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.discountTypeBtn,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor:
+                        discountType === "percent"
+                          ? colors.primary
+                          : colors.background,
+                    },
+                  ]}
+                  onPress={() => setDiscountType("percent")}
+                >
+                  <Text
+                    style={{
+                      color:
+                        discountType === "percent"
+                          ? colors.primaryForeground
+                          : colors.foreground,
+                      fontWeight: "600",
+                    }}
+                  >
+                    %
+                  </Text>
+                </Pressable>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderTopRightRadius: colors.radius,
+                      borderBottomRightRadius: colors.radius,
+                      marginBottom: 0,
+                    },
+                  ]}
+                  value={discountValue}
+                  onChangeText={(text) =>
+                    setDiscountValue(text.replace(/[^0-9.]/g, ""))
+                  }
+                  placeholder={
+                    discountType === "percent"
+                      ? t("percentage")
+                      : t("flatAmount")
+                  }
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
+            {parseFloat(discountValue) > 0 && (
+              <View style={[styles.discountPreview, { backgroundColor: colors.primary + "10", borderRadius: colors.radius }]}>
+                <Text style={[styles.discountPreviewText, { color: colors.primary }]}>
+                  {t("finalTotal") || "Final Total"}: ₹{(() => {
+                    const base = parseFloat(amount) || 0;
+                    const dv = parseFloat(discountValue) || 0;
+                    if (discountType === "flat") return Math.max(0, base - dv).toFixed(2);
+                    return Math.max(0, base - (base * dv) / 100).toFixed(2);
+                  })()}
+                </Text>
+              </View>
+            )}
+
             <View
               style={[
                 styles.reminderToggleRow,
@@ -439,7 +622,7 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
                       },
                     ]}
                     value={reminderDateStr}
-                    onChangeText={setReminderDateStr}
+                    onChangeText={handleDateParsing}
                     placeholder={t("datePlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
@@ -612,6 +795,29 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
   },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  photoBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePic: {
+    width: "100%",
+    height: "100%",
+  },
+  photoLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
   contactPickBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -759,6 +965,35 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
+  },
+  discountContainer: {
+    marginBottom: 16,
+  },
+  discountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  discountTypeBtn: {
+    width: 48,
+    height: 48,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -1.5,
+    zIndex: 1,
+  },
+  discountPreview: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(0,0,0,0.1)",
+  },
+  discountPreviewText: {
+    fontSize: 16,
+    fontWeight: "700",
   },
   webPickerOverlay: {
     flex: 1,

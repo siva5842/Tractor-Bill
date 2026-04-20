@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   Text,
   TextInput,
   View,
+  Image,
 } from "react-native";
 
 import { AnalogTimePicker } from "@/components/AnalogTimePicker";
@@ -90,6 +92,9 @@ export function SaveToPendingModal({
 
   const [contactName, setContactName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
+  const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
+  const [discountValue, setDiscountValue] = useState("");
   const [wantsReminder, setWantsReminder] = useState(false);
   const [reminderDateStr, setReminderDateStr] = useState("");
   const [reminderHours, setReminderHours] = useState(9);
@@ -127,31 +132,66 @@ export function SaveToPendingModal({
     }
   }, [visible]);
 
-  const pickContact = async () => {
-    if (Platform.OS === "web") {
-      Alert.alert("", t("webContactsUnavailable"));
+  const pickProfilePic = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
       return;
     }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setProfilePic(result.assets[0].uri);
+    }
+  };
+
+  const pickContact = async () => {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("contactsPermission"), "", [
-          { text: t("cancel"), style: "cancel" },
-        ]);
-        return;
-      }
-      const contact = await Contacts.presentContactPickerAsync();
-      if (contact) {
-        setContactName(contact.name || "");
-        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-          setMobileNumber(
-            contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
-          );
+      if (status === "granted") {
+        const contact = await Contacts.presentContactPickerAsync({
+          fields: [
+            Contacts.Fields.Name,
+            Contacts.Fields.PhoneNumbers,
+            Contacts.Fields.Image,
+          ],
+        });
+
+        if (contact) {
+          setContactName(contact.name || "");
+          if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+            setMobileNumber(
+              contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
+            );
+          }
+          if (contact.imageAvailable && contact.image?.uri) {
+            setProfilePic(contact.image.uri);
+          }
+          setShowSuggestions(false);
         }
-        setShowSuggestions(false);
       }
     } catch (err) {
-      console.error("Error picking contact:", err);
+      console.error(err);
+      if (Platform.OS === "web") {
+        Alert.alert("Error", t("webContactsUnavailable"));
+      }
+    }
+  };
+
+  const handleDateParsing = (text: string) => {
+    let raw = text.replace(/[^0-9]/g, "");
+    if (raw.length === 8) {
+      const formatted =
+        raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
+      setReminderDateStr(formatted);
+    } else {
+      setReminderDateStr(text);
     }
   };
 
@@ -172,6 +212,16 @@ export function SaveToPendingModal({
 
     if (Platform.OS !== "web")
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    let finalAmount = amount;
+    const dv = parseFloat(discountValue) || 0;
+    if (dv > 0) {
+      if (discountType === "flat") {
+        finalAmount = Math.max(0, amount - dv);
+      } else {
+        finalAmount = Math.max(0, amount - (amount * dv) / 100);
+      }
+    }
 
     let reminderDate: number | undefined;
     let notificationId: string | undefined;
@@ -195,10 +245,10 @@ export function SaveToPendingModal({
       const schedId = await scheduleDebtReminder({
         debtId: newId,
         contactName: contactName.trim(),
-        amount,
+        amount: finalAmount,
         date: dateObj,
         title: t("paymentReminder"),
-        body: `${contactName.trim()} ${t("owesYou")} ₹${amount.toFixed(2)}`,
+        body: `${contactName.trim()} ${t("owesYou")} ₹${finalAmount.toFixed(2)}`,
       });
       if (schedId) {
         notificationId = schedId;
@@ -211,7 +261,8 @@ export function SaveToPendingModal({
     addPendingDebt({
       contactName: contactName.trim(),
       mobileNumber: mobileNumber.trim(),
-      amount,
+      profilePic,
+      amount: finalAmount,
       description: equipmentName,
       source: "Home Equipment",
       durationSeconds,
@@ -260,6 +311,37 @@ export function SaveToPendingModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            <View style={styles.photoSection}>
+              <Pressable
+                onPress={pickProfilePic}
+                style={[
+                  styles.photoBtn,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {profilePic ? (
+                  <Image
+                    source={{ uri: profilePic }}
+                    style={styles.profilePic}
+                  />
+                ) : (
+                  <MaterialIcons
+                    name="add-a-photo"
+                    size={32}
+                    color={colors.primary}
+                  />
+                )}
+              </Pressable>
+              <Text
+                style={[styles.photoLabel, { color: colors.mutedForeground }]}
+              >
+                {profilePic ? t("changePhoto") : t("addPhoto")}
+              </Text>
+            </View>
+
             <Pressable
               style={[
                 styles.contactPickBtn,
@@ -374,6 +456,91 @@ export function SaveToPendingModal({
               keyboardType="phone-pad"
             />
 
+            <View style={styles.discountContainer}>
+              <Text style={[styles.label, { color: colors.foreground }]}>
+                {t("discount")}
+              </Text>
+              <View style={styles.discountRow}>
+                <Pressable
+                  style={[
+                    styles.discountTypeBtn,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor:
+                        discountType === "flat"
+                          ? colors.primary
+                          : colors.background,
+                      borderTopLeftRadius: colors.radius,
+                      borderBottomLeftRadius: colors.radius,
+                    },
+                  ]}
+                  onPress={() => setDiscountType("flat")}
+                >
+                  <Text
+                    style={{
+                      color:
+                        discountType === "flat"
+                          ? colors.primaryForeground
+                          : colors.foreground,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ₹
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.discountTypeBtn,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor:
+                        discountType === "percent"
+                          ? colors.primary
+                          : colors.background,
+                    },
+                  ]}
+                  onPress={() => setDiscountType("percent")}
+                >
+                  <Text
+                    style={{
+                      color:
+                        discountType === "percent"
+                          ? colors.primaryForeground
+                          : colors.foreground,
+                      fontWeight: "600",
+                    }}
+                  >
+                    %
+                  </Text>
+                </Pressable>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderTopRightRadius: colors.radius,
+                      borderBottomRightRadius: colors.radius,
+                      marginBottom: 0,
+                    },
+                  ]}
+                  value={discountValue}
+                  onChangeText={(text) =>
+                    setDiscountValue(text.replace(/[^0-9.]/g, ""))
+                  }
+                  placeholder={
+                    discountType === "percent"
+                      ? t("percentage")
+                      : t("flatAmount")
+                  }
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
             <View
               style={[
                 styles.reminderToggleRow,
@@ -433,7 +600,7 @@ export function SaveToPendingModal({
                       },
                     ]}
                     value={reminderDateStr}
-                    onChangeText={setReminderDateStr}
+                    onChangeText={handleDateParsing}
                     placeholder={t("datePlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
@@ -500,7 +667,12 @@ export function SaveToPendingModal({
                 {t("amount")}
               </Text>
               <Text style={[styles.amountValue, { color: colors.primary }]}>
-                ₹{amount.toFixed(2)}
+                ₹{(() => {
+                  const base = amount || 0;
+                  const dv = parseFloat(discountValue) || 0;
+                  if (discountType === "flat") return Math.max(0, base - dv).toFixed(2);
+                  return Math.max(0, base - (base * dv) / 100).toFixed(2);
+                })()}
               </Text>
             </View>
 
@@ -624,6 +796,29 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     flex: 1,
+  },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  photoBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePic: {
+    width: "100%",
+    height: "100%",
+  },
+  photoLabel: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   contactPickBtn: {
     flexDirection: "row",
@@ -789,6 +984,22 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
+  },
+  discountContainer: {
+    marginBottom: 16,
+  },
+  discountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  discountTypeBtn: {
+    width: 48,
+    height: 48,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -1.5,
+    zIndex: 1,
   },
   webPickerOverlay: {
     flex: 1,

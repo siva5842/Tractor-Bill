@@ -21,12 +21,13 @@ import { useColors } from "@/hooks/useColors";
 interface Props {
   visible: boolean;
   onClose: () => void;
+  onSaveToPending: (amount: number) => void;
 }
 
-export function ManualCalculatorModal({ visible, onClose }: Props) {
+export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Props) {
   const { t } = useApp();
   const colors = useColors();
-  const { addHistoryEntry, addPendingDebt } = useData();
+  const { addHistoryEntry } = useData();
 
   const [rate, setRate] = useState("");
   const [hours, setHours] = useState("");
@@ -103,18 +104,8 @@ export function ManualCalculatorModal({ visible, onClose }: Props) {
 
   const handleAddToPending = () => {
     if (result === null || result <= 0) return;
-    
-    // Auto-save to pending via DataContext
-    addPendingDebt({
-      contactName: "Calculator Customer",
-      mobileNumber: "0000000000",
-      amount: result,
-      description: `${t("rate")}: ₹${rate}/hr`,
-      source: "Calculator",
-    });
-    
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 2500);
+    onSaveToPending(result);
+    onClose();
   };
 
   return (

@@ -19,6 +19,7 @@ import { useColors } from "@/hooks/useColors";
 
 interface Props {
   onProfilePress: () => void;
+  onCalculatorPress: () => void;
   title?: string;
 }
 
@@ -28,7 +29,7 @@ const LANGUAGES: { code: Language; label: string; flag: string }[] = [
   { code: "hi", label: "हिंदी", flag: "🇮🇳" },
 ];
 
-export function TopAppBar({ onProfilePress, title }: Props) {
+export function TopAppBar({ onProfilePress, onCalculatorPress, title }: Props) {
   const { t, profile, language, setLanguage, setHasSeenOnboarding } = useApp();
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -109,6 +110,14 @@ export function TopAppBar({ onProfilePress, title }: Props) {
             hitSlop={10}
           >
             <MaterialIcons name="language" size={22} color={colors.primaryForeground} />
+          </Pressable>
+
+          <Pressable
+            onPress={onCalculatorPress}
+            style={[styles.iconBtn, { backgroundColor: colors.primaryForeground + "22" }]}
+            hitSlop={10}
+          >
+            <MaterialIcons name="calculate" size={22} color={colors.primaryForeground} />
           </Pressable>
 
           <Pressable

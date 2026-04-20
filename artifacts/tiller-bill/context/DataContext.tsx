@@ -39,6 +39,7 @@ export interface PendingDebt {
   id: string;
   contactName: string;
   mobileNumber: string;
+  profilePic?: string;
   lineItems: PendingDebtItem[];
   totalAmount: number;
   reminderDate?: number;
@@ -56,6 +57,8 @@ export interface HistoryEntry {
   durationSeconds?: number;
   equipmentName?: string;
   contactName?: string;
+  mobileNumber?: string;
+  profilePic?: string;
   createdAt: number;
 }
 
@@ -87,6 +90,7 @@ interface DataContextType {
 
   historyEntries: HistoryEntry[];
   addHistoryEntry: (entry: Omit<HistoryEntry, "id" | "createdAt">) => void;
+  updateHistoryEntry: (id: string, updates: Partial<Omit<HistoryEntry, "id" | "createdAt">>) => void;
   deleteHistoryEntry: (id: string) => void;
 }
 
@@ -354,9 +358,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ...entry,
         id: makeId(),
         createdAt: Date.now(),
+        profilePic: entry.profilePic,
       };
       setHistoryEntries((prev) => {
         const next = [newEntry, ...prev];
+        saveHistory(next);
+        return next;
+      });
+    },
+    [saveHistory]
+  );
+
+  const updateHistoryEntry = useCallback(
+    (id: string, updates: Partial<Omit<HistoryEntry, "id" | "createdAt">>) => {
+      setHistoryEntries((prev) => {
+        const next = prev.map((e) => (e.id === id ? { ...e, ...updates } : e));
         saveHistory(next);
         return next;
       });
@@ -519,6 +535,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updatePendingItem,
         historyEntries,
         addHistoryEntry,
+        updateHistoryEntry,
         deleteHistoryEntry,
       }}
     >

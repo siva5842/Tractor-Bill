@@ -2,18 +2,25 @@ import { MaterialIcons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 
 import { TopAppBar } from "@/components/TopAppBar";
 import { ProfileModal } from "@/components/ProfileModal";
+import { ManualCalculatorModal } from "@/components/ManualCalculatorModal";
+import { AddPendingModal } from "@/components/AddPendingModal";
 import { useApp } from "@/context/AppContext";
 import { HistoryEntry, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
@@ -52,9 +59,10 @@ function sameMonth(ts: number, my: MonthYear) {
 interface HistoryCardProps {
   entry: HistoryEntry;
   onDelete: () => void;
+  onEdit: () => void;
 }
 
-function HistoryCard({ entry, onDelete }: HistoryCardProps) {
+function HistoryCard({ entry, onDelete, onEdit }: HistoryCardProps) {
   const { t } = useApp();
   const colors = useColors();
 
@@ -69,7 +77,14 @@ function HistoryCard({ entry, onDelete }: HistoryCardProps) {
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
       <View style={[styles.iconBadge, { backgroundColor: cfg.color + "18" }]}>
-        <MaterialIcons name={cfg.icon} size={22} color={cfg.color} />
+        {entry.profilePic ? (
+          <Image
+            source={{ uri: entry.profilePic }}
+            style={styles.avatarImgSmall}
+          />
+        ) : (
+          <MaterialIcons name={cfg.icon} size={22} color={cfg.color} />
+        )}
       </View>
 
       <View style={styles.cardInfo}>
@@ -101,15 +116,234 @@ function HistoryCard({ entry, onDelete }: HistoryCardProps) {
         </Text>
       </View>
 
-      <TouchableOpacity
-        onPress={onDelete}
-        style={styles.deleteBtn}
-        activeOpacity={0.5}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
-      </TouchableOpacity>
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          onPress={onEdit}
+          style={styles.actionBtn}
+          activeOpacity={0.5}
+        >
+          <MaterialIcons name="edit" size={20} color={colors.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onDelete}
+          style={styles.actionBtn}
+          activeOpacity={0.5}
+        >
+          <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
+        </TouchableOpacity>
+      </View>
     </View>
+  );
+}
+
+interface EditHistoryModalProps {
+  visible: boolean;
+  entry: HistoryEntry | null;
+  onClose: () => void;
+  onSave: (id: string, updates: Partial<HistoryEntry>) => void;
+}
+
+function EditHistoryModal({ visible, entry, onClose, onSave }: EditHistoryModalProps) {
+  const { t } = useApp();
+  const colors = useColors();
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dateStr, setDateStr] = useState("");
+  const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (entry) {
+      setTitle(entry.title);
+      setAmount(entry.amount.toString());
+      setPhone(entry.mobileNumber || "");
+      setProfilePic(entry.profilePic);
+      const d = new Date(entry.createdAt);
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      setDateStr(`${day}/${month}/${year}`);
+    }
+  }, [entry]);
+
+  const pickProfilePic = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setProfilePic(result.assets[0].uri);
+    }
+  };
+
+  const handleSave = () => {
+    if (!entry) return;
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt < 0) {
+      Alert.alert(t("error"), t("enterValidAmount"));
+      return;
+    }
+
+    let finalCreatedAt = entry.createdAt;
+    if (dateStr) {
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        const d = new Date(
+          parseInt(parts[2]),
+          parseInt(parts[1]) - 1,
+          parseInt(parts[0])
+        );
+        if (!isNaN(d.getTime())) {
+          finalCreatedAt = d.getTime();
+        }
+      }
+    }
+
+    onSave(entry.id, {
+      title: title.trim(),
+      contactName: title.trim(),
+      amount: amt,
+      mobileNumber: phone.trim(),
+      profilePic,
+      createdAt: finalCreatedAt,
+    });
+    onClose();
+  };
+
+  const handlePhoneChange = (text: string) => {
+    setPhone(text.replace(/[^0-9]/g, ""));
+  };
+
+  const handleDateParsing = (text: string, setter: (val: string) => void) => {
+    let raw = text.replace(/[^0-9]/g, "");
+    if (raw.length === 8) {
+      const formatted =
+        raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
+      setter(formatted);
+    } else {
+      setter(text);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.modalOverlay}
+      >
+        <View style={[styles.modalContent, { backgroundColor: colors.card, borderRadius: 20 }]}>
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("editHistory")}</Text>
+
+          <ScrollView style={styles.modalScroll}>
+            <View style={styles.photoSection}>
+              <Pressable
+                onPress={pickProfilePic}
+                style={[
+                  styles.photoBtn,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {profilePic ? (
+                  <Image
+                    source={{ uri: profilePic }}
+                    style={styles.profilePic}
+                  />
+                ) : (
+                  <MaterialIcons
+                    name="add-a-photo"
+                    size={32}
+                    color={colors.primary}
+                  />
+                )}
+              </Pressable>
+              <Text
+                style={[styles.photoLabel, { color: colors.mutedForeground }]}
+              >
+                {profilePic ? t("changeQR") : t("addPhoto")}
+              </Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.foreground }]}>{t("contactName")}</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                value={title}
+                onChangeText={setTitle}
+                placeholder={t("enterContactName")}
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.foreground }]}>{t("mobileNumber")}</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                value={phone}
+                onChangeText={handlePhoneChange}
+                placeholder={t("phonePlaceholder")}
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.foreground }]}>{t("amount")}</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder={t("amountPlaceholder")}
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.foreground }]}>
+                {t("date") || "Date"}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                    backgroundColor: colors.background,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+                value={dateStr}
+                onChangeText={(text) => handleDateParsing(text, setDateStr)}
+                placeholder="DD/MM/YYYY"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numeric"
+              />
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
+              <Text style={{ color: colors.foreground }}>{t("cancel")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleSave} style={[styles.modalBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}>
+              <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -117,13 +351,17 @@ export default function HistoryTab() {
   const { t, confirmationSettings } = useApp();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { historyEntries, pendingDebts, deleteHistoryEntry } = useData();
+  const { historyEntries, pendingDebts, deleteHistoryEntry, updateHistoryEntry } = useData();
   const [showProfile, setShowProfile] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcPendingAmount, setCalcPendingAmount] = useState<number | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [selectedMonth, setSelectedMonth] = useState<MonthYear>(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
   });
+
+  const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
 
   const totalIncome = useMemo(
     () => historyEntries.reduce((sum, e) => sum + e.amount, 0),
@@ -131,7 +369,7 @@ export default function HistoryTab() {
   );
 
   const totalPending = useMemo(
-    () => pendingDebts.reduce((sum, d) => sum + d.amount, 0),
+    () => pendingDebts.reduce((sum, d) => sum + d.totalAmount, 0),
     [pendingDebts]
   );
 
@@ -189,7 +427,11 @@ export default function HistoryTab() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <TopAppBar onProfilePress={() => setShowProfile(true)} title={t("history")} />
+      <TopAppBar
+        onProfilePress={() => setShowProfile(true)}
+        onCalculatorPress={() => setShowCalculator(true)}
+        title={t("history")}
+      />
 
       <ScrollView
         stickyHeaderIndices={[1]}
@@ -279,11 +521,34 @@ export default function HistoryTab() {
                 key={entry.id}
                 entry={entry}
                 onDelete={() => handleDeleteEntry(entry.id)}
+                onEdit={() => setEditingEntry(entry)}
               />
             ))}
           </View>
         )}
       </ScrollView>
+
+      <EditHistoryModal
+        visible={!!editingEntry}
+        entry={editingEntry}
+        onClose={() => setEditingEntry(null)}
+        onSave={updateHistoryEntry}
+      />
+
+      <ManualCalculatorModal
+        visible={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        onSaveToPending={(amount) => {
+          setCalcPendingAmount(amount);
+          setShowCalculator(false);
+        }}
+      />
+
+      <AddPendingModal
+        visible={calcPendingAmount !== null}
+        onClose={() => setCalcPendingAmount(null)}
+        initialAmount={calcPendingAmount?.toString()}
+      />
 
       <ProfileModal visible={showProfile} onClose={() => setShowProfile(false)} />
     </View>
@@ -377,6 +642,11 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImgSmall: {
+    width: "100%",
+    height: "100%",
   },
   cardInfo: {
     flex: 1,
@@ -419,6 +689,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  cardActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionBtn: {
+    padding: 4,
+  },
   deleteBtn: {
     padding: 4,
     alignSelf: "flex-start",
@@ -439,5 +716,70 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalScroll: {
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  photoBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePic: {
+    width: "100%",
+    height: "100%",
+  },
+  photoLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

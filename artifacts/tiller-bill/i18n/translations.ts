@@ -232,6 +232,8 @@ export const translations = {
     flatAmount: "Flat Amount",
     percentage: "Percentage",
     discountPlaceholder: "e.g. 10",
+    editHistory: "Edit Record",
+    editSuccess: "Record updated successfully!",
   },
   ta: {
     appName: "ட்ராக்டர் பில்",
@@ -279,7 +281,7 @@ export const translations = {
     addPending: "நிலுவை சேர்க்க",
     noPending: "நிலுவை கடன்கள் இல்லை",
     noPendingDesc:
-      "அனைத்து பில்களும் தீர்க்கப்பட்டன! + பொத்தானைப் பயன்படுத்தி புதிய கடன் சேர்க்கவும்.",
+      "அனைத்து பில்கள் தீர்க்கப்பட்டன! + பொத்தானைப் பயன்படுத்தி புதிய கடன் சேர்க்கவும்.",
     noEquipment: "உபகரணங்கள் சேர்க்கப்படவில்லை",
     noEquipmentDesc: "+ அழுத்தி முதல் உபகரணம் சேர்க்கவும்.",
     deletePendingTitle: "கடன் நீக்கவா?",
@@ -466,6 +468,8 @@ export const translations = {
     flatAmount: "நிலையான தொகை",
     percentage: "சதவீதம்",
     discountPlaceholder: "எ.கா. 10",
+    editHistory: "பதிவைத் திருத்தவும்",
+    editSuccess: "பதிவு வெற்றிகரமாக புதுப்பிக்கப்பட்டது!",
   },
   hi: {
     appName: "ट्रैक्टर बिल",
@@ -694,6 +698,8 @@ export const translations = {
     flatAmount: "निश्चित राशि",
     percentage: "प्रतिशत",
     discountPlaceholder: "जैसे 10",
+    editHistory: "रिकॉर्ड संपादित करें",
+    editSuccess: "रिकॉर्ड सफलतापूर्वक अपडेट किया गया!",
   },
 } as const;
 

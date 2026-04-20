@@ -19,6 +19,7 @@ import {
 
 import { AddPendingModal } from "@/components/AddPendingModal";
 import { AnalogTimePicker } from "@/components/AnalogTimePicker";
+import { ManualCalculatorModal } from "@/components/ManualCalculatorModal";
 import { ProfileModal } from "@/components/ProfileModal";
 import { QRCodeModal } from "@/components/QRCodeModal";
 import { TopAppBar } from "@/components/TopAppBar";
@@ -944,6 +945,8 @@ export default function PendingTab() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcPendingAmount, setCalcPendingAmount] = useState<number | null>(null);
   const [qrAmount, setQrAmount] = useState<number | null>(null);
   const [reminderDebt, setReminderDebt] = useState<PendingDebt | null>(null);
   const [editingItem, setEditingItem] = useState<{
@@ -970,7 +973,11 @@ export default function PendingTab() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <TopAppBar onProfilePress={() => setShowProfile(true)} />
+      <TopAppBar
+        onProfilePress={() => setShowProfile(true)}
+        onCalculatorPress={() => setShowCalculator(true)}
+        title={t("pending")}
+      />
 
       {count > 0 && (
         <View style={[styles.totalBanner, { backgroundColor: colors.primary }]}>
@@ -1046,11 +1053,25 @@ export default function PendingTab() {
         <MaterialIcons name="add" size={32} color={colors.primaryForeground} />
       </Pressable>
 
-      <AddPendingModal visible={showAdd} onClose={() => setShowAdd(false)} />
-      <ProfileModal
-        visible={showProfile}
-        onClose={() => setShowProfile(false)}
+      <AddPendingModal
+        visible={showAdd || calcPendingAmount !== null}
+        onClose={() => {
+          setShowAdd(false);
+          setCalcPendingAmount(null);
+        }}
+        initialAmount={calcPendingAmount?.toString()}
       />
+
+      <ManualCalculatorModal
+        visible={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        onSaveToPending={(amount) => {
+          setCalcPendingAmount(amount);
+          setShowCalculator(false);
+        }}
+      />
+
+      <ProfileModal visible={showProfile} onClose={() => setShowProfile(false)} />
 
       {qrAmount !== null && (
         <QRCodeModal

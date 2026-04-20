@@ -53,6 +53,8 @@ export function StopSessionModal({
   const [editableAmount, setEditableAmount] = useState(
     calculatedAmount.toFixed(2)
   );
+  const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
+  const [discountValue, setDiscountValue] = useState("");
 
   useEffect(() => {
     if (visible) {
@@ -64,7 +66,17 @@ export function StopSessionModal({
   const handleQRPress = () => {
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setEditableAmount(calculatedAmount.toFixed(2));
+    
+    let finalAmount = calculatedAmount;
+    const dv = parseFloat(discountValue) || 0;
+    if (dv > 0) {
+      if (discountType === "flat") {
+        finalAmount = Math.max(0, calculatedAmount - dv);
+      } else {
+        finalAmount = Math.max(0, calculatedAmount - (calculatedAmount * dv) / 100);
+      }
+    }
+    setEditableAmount(finalAmount.toFixed(2));
     setShowAmountEditor(true);
   };
 
@@ -81,7 +93,17 @@ export function StopSessionModal({
   const handleSave = () => {
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSaveToPending(calculatedAmount, totalSeconds);
+    
+    let finalAmount = calculatedAmount;
+    const dv = parseFloat(discountValue) || 0;
+    if (dv > 0) {
+      if (discountType === "flat") {
+        finalAmount = Math.max(0, calculatedAmount - dv);
+      } else {
+        finalAmount = Math.max(0, calculatedAmount - (calculatedAmount * dv) / 100);
+      }
+    }
+    onSaveToPending(finalAmount, totalSeconds);
   };
 
   const handleFinish = () => {
@@ -216,8 +238,104 @@ export function StopSessionModal({
                 {t("totalAmount")}
               </Text>
               <Text style={[styles.summaryValueBig, { color: colors.primary }]}>
-                ₹{calculatedAmount.toFixed(2)}
+                ₹{(() => {
+                  const dv = parseFloat(discountValue) || 0;
+                  if (dv > 0) {
+                    if (discountType === "flat") {
+                      return Math.max(0, calculatedAmount - dv).toFixed(2);
+                    } else {
+                      return Math.max(0, calculatedAmount - (calculatedAmount * dv) / 100).toFixed(2);
+                    }
+                  }
+                  return calculatedAmount.toFixed(2);
+                })()}
               </Text>
+            </View>
+          </View>
+
+          <View style={styles.discountContainer}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("discount")}
+            </Text>
+            <View style={styles.discountRow}>
+              <Pressable
+                style={[
+                  styles.discountTypeBtn,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor:
+                      discountType === "flat"
+                        ? colors.primary
+                        : colors.background,
+                    borderTopLeftRadius: colors.radius,
+                    borderBottomLeftRadius: colors.radius,
+                  },
+                ]}
+                onPress={() => setDiscountType("flat")}
+              >
+                <Text
+                  style={{
+                    color:
+                      discountType === "flat"
+                        ? colors.primaryForeground
+                        : colors.foreground,
+                    fontWeight: "600",
+                  }}
+                >
+                  ₹
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.discountTypeBtn,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor:
+                      discountType === "percent"
+                        ? colors.primary
+                        : colors.background,
+                  },
+                ]}
+                onPress={() => setDiscountType("percent")}
+              >
+                <Text
+                  style={{
+                    color:
+                      discountType === "percent"
+                        ? colors.primaryForeground
+                        : colors.foreground,
+                    fontWeight: "600",
+                  }}
+                >
+                  %
+                </Text>
+              </Pressable>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    flex: 1,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                    backgroundColor: colors.background,
+                    borderTopRightRadius: colors.radius,
+                    borderBottomRightRadius: colors.radius,
+                    marginBottom: 0,
+                    height: 48,
+                    paddingHorizontal: 12,
+                    borderWidth: 1.5,
+                  },
+                ]}
+                value={discountValue}
+                onChangeText={(text) =>
+                  setDiscountValue(text.replace(/[^0-9.]/g, ""))
+                }
+                placeholder={
+                  discountType === "percent" ? t("percentage") : t("flatAmount")
+                }
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="decimal-pad"
+              />
             </View>
           </View>
 
@@ -370,5 +488,31 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "800",
     paddingVertical: 12,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    alignSelf: "flex-start",
+  },
+  input: {
+    fontSize: 16,
+  },
+  discountContainer: {
+    width: "100%",
+    marginBottom: 16,
+  },
+  discountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  discountTypeBtn: {
+    width: 48,
+    height: 48,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -1.5,
+    zIndex: 1,
   },
 });

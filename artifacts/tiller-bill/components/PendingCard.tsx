@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View, Image } from "react-native";
 
 import { useApp } from "@/context/AppContext";
 import { PendingDebt, useData } from "@/context/DataContext";
@@ -38,7 +38,8 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
       const msg = msgTemplate
         .replace("{name}", debt.contactName)
         .replace("{amount}", debt.totalAmount.toFixed(2));
-      Linking.openURL(`https://wa.me/91${debt.mobileNumber.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`);
+      const cleanPhone = debt.mobileNumber.replace(/[^0-9]/g, "");
+      Linking.openURL(`whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`);
     }
   };
 
@@ -101,9 +102,13 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
     >
       <Pressable style={styles.top} onPress={() => setExpanded(!expanded)}>
         <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
-          <Text style={[styles.avatarText, { color: colors.primary }]}>
-            {debt.contactName.charAt(0).toUpperCase()}
-          </Text>
+          {debt.profilePic ? (
+            <Image source={{ uri: debt.profilePic }} style={styles.avatarImg} />
+          ) : (
+            <Text style={[styles.avatarText, { color: colors.primary }]}>
+              {debt.contactName.charAt(0).toUpperCase()}
+            </Text>
+          )}
         </View>
 
         <View style={styles.info}>
@@ -249,6 +254,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
   },
   avatarText: {
     fontSize: 22,
