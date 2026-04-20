@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tractor Bill",
     "slug": "tiller-bill",
-    "version": "4.0.8",
+    "version": "5.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": [
@@ -53,6 +53,7 @@
       ["@react-native-google-signin/google-signin"],
       "expo-font",
       "expo-web-browser",
+      "expo-document-picker",
       "expo-image-picker",
       "expo-sqlite",
       [

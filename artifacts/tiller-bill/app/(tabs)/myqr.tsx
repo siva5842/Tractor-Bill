@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Brightness from "expo-brightness";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -54,16 +54,9 @@ export default function MyQrTab() {
 
   const handleUpload = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 1,
-        allowsEditing: false,
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets[0]) {
         if (Platform.OS !== "web")
@@ -76,24 +69,7 @@ export default function MyQrTab() {
   };
 
   const handleCamera = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("cameraPermission"), t("cameraPermissionDenied"));
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        quality: 1,
-        allowsEditing: false,
-      });
-      if (!result.canceled && result.assets[0]) {
-        if (Platform.OS !== "web")
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setMyQrUri(result.assets[0].uri);
-      }
-    } catch (e) {
-      console.error("Camera error:", e);
-    }
+    handleUpload();
   };
 
   const handleRemove = () => {

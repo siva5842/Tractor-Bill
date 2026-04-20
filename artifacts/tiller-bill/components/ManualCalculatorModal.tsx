@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import { AddPendingModal } from "@/components/AddPendingModal";
+import { StopSessionModal } from "@/components/StopSessionModal";
 import { useApp } from "@/context/AppContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
@@ -37,6 +38,8 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
   const [result, setResult] = useState<number | null>(null);
   const [savedToast, setSavedToast] = useState(false);
   const [showAddPending, setShowAddPending] = useState(false);
+
+  const [showStopSession, setShowStopSession] = useState(false);
 
   const calculate = () => {
     try {
@@ -86,9 +89,15 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
     setResult(null);
     setSavedToast(false);
     setShowAddPending(false);
+    setShowStopSession(false);
   };
 
   const handleSaveToHistory = () => {
+    if (result === null) return;
+    setShowStopSession(true);
+  };
+
+  const handleConfirmFinish = (customerData: { name: string; phone: string; image?: string }) => {
     if (result === null) return;
     const totalSecs =
       (parseFloat(hours) || 0) * 3600 + (parseFloat(minutes) || 0) * 60;
@@ -97,15 +106,21 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
       title: `${t("rate")}: ₹${rate}/hr`,
       amount: result,
       durationSeconds: totalSecs > 0 ? totalSecs : undefined,
+      contactName: customerData.name,
+      mobileNumber: customerData.phone,
+      profilePic: customerData.image,
     });
     setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 2500);
+    setShowStopSession(false);
+    setTimeout(() => {
+      setSavedToast(false);
+      onClose();
+    }, 2000);
   };
 
-  const handleAddToPending = () => {
+  const handleSaveToPending = () => {
     if (result === null || result <= 0) return;
-    onSaveToPending(result);
-    onClose();
+    setShowAddPending(true);
   };
 
   return (
@@ -357,23 +372,23 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
                     </Text>
                   </Pressable>
                   <Pressable
-                    onPress={handleAddToPending}
+                    onPress={handleSaveToPending}
                     style={[
                       styles.pendingBtn,
                       {
-                        backgroundColor: colors.accent + "18",
+                        backgroundColor: colors.primary + "18",
                         borderRadius: colors.radius,
-                        borderColor: colors.accent,
+                        borderColor: colors.primary,
                       },
                     ]}
                   >
                     <MaterialIcons
                       name="person-add"
                       size={16}
-                      color={colors.accent}
+                      color={colors.primary}
                     />
                     <Text
-                      style={[styles.pendingBtnText, { color: colors.accent }]}
+                      style={[styles.pendingBtnText, { color: colors.primary }]}
                     >
                       {t("addToPending") || "Add to Pending"}
                     </Text>
@@ -397,8 +412,26 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
 
       <AddPendingModal
         visible={showAddPending}
-        onClose={() => setShowAddPending(false)}
+        onClose={() => {
+          setShowAddPending(false);
+          onClose();
+        }}
         initialAmount={result?.toFixed(2)}
+      />
+
+      <StopSessionModal
+        visible={showStopSession}
+        timer={null}
+        equipment={{
+          id: "manual",
+          name: t("manualCalc"),
+          hourlyRate: parseFloat(rate) || 0,
+          createdAt: Date.now(),
+        }}
+        onGenerateQR={() => {}}
+        onSaveToPending={() => {}}
+        onFinish={handleConfirmFinish}
+        onClose={() => setShowStopSession(false)}
       />
     </Modal>
   );

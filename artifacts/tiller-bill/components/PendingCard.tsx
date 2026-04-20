@@ -10,6 +10,7 @@ interface Props {
   debt: PendingDebt;
   onDelete: () => void;
   onPaid: () => void;
+  onEdit: () => void;
 }
 
 function formatDate(ts: number) {
@@ -17,7 +18,7 @@ function formatDate(ts: number) {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 
-export function PendingCard({ debt, onDelete, onPaid }: Props) {
+export function PendingCard({ debt, onDelete, onPaid, onEdit }: Props) {
   const { t, confirmationSettings } = useApp();
   const colors = useColors();
   const { deletePendingItem, markPendingItemPaid, updatePendingItem, markPendingPaid } = useData();
@@ -38,7 +39,7 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
       const msg = msgTemplate
         .replace("{name}", debt.contactName)
         .replace("{amount}", debt.totalAmount.toFixed(2));
-      const cleanPhone = debt.mobileNumber.replace(/[^0-9]/g, "");
+      const cleanPhone = debt.mobileNumber.replace(/\D/g, "");
       Linking.openURL(`whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`);
     }
   };
@@ -112,7 +113,12 @@ export function PendingCard({ debt, onDelete, onPaid }: Props) {
         </View>
 
         <View style={styles.info}>
-          <Text style={[styles.name, { color: colors.foreground }]}>{debt.contactName}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={[styles.name, { color: colors.foreground }]}>{debt.contactName}</Text>
+            <Pressable onPress={onEdit} hitSlop={12}>
+              <MaterialIcons name="edit" size={16} color={colors.primary} />
+            </Pressable>
+          </View>
           {!!debt.mobileNumber && (
             <Text style={[styles.mobile, { color: colors.mutedForeground }]}>
               {debt.mobileNumber}

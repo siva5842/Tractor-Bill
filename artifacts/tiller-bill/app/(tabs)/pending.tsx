@@ -1,5 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as DocumentPicker from "expo-document-picker";
+import * as Contacts from "expo-contacts";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useMemo, useState } from "react";
 import {
@@ -15,6 +17,7 @@ import {
   Text,
   TextInput,
   View,
+  Image,
 } from "react-native";
 
 import { AddPendingModal } from "@/components/AddPendingModal";
@@ -35,6 +38,7 @@ interface ContactGroup {
   key: string;
   contactName: string;
   mobileNumber: string;
+  profilePic?: string;
   debts: PendingDebt[];
   total: number;
 }
@@ -42,21 +46,28 @@ interface ContactGroup {
 function groupDebts(debts: PendingDebt[]): ContactGroup[] {
   if (!debts || !Array.isArray(debts)) return [];
   
-  return debts.map(d => ({
-    key: d.id,
-    contactName: d.contactName || "Unknown",
-    mobileNumber: d.mobileNumber || "",
-    debts: (d.lineItems || []).map(li => ({
-      ...li,
-      id: li.id,
+  return (debts || [])
+    .filter(d => !!d) // Safety check for null entries
+    .map(d => ({
+      key: d.id || String(Math.random()),
       contactName: d.contactName || "Unknown",
       mobileNumber: d.mobileNumber || "",
-      amount: li.amount || 0,
-      equipmentName: li.description || "",
-      createdAt: li.timestamp || Date.now(),
-    })),
-    total: d.totalAmount || 0,
-  })).sort((a, b) => (b.total || 0) - (a.total || 0));
+      profilePic: d.profilePic,
+      debts: (d.lineItems || [])
+        .filter(li => !!li) // Safety check for null items
+        .map(li => ({
+          ...li,
+          id: li.id || String(Math.random()),
+          contactName: d.contactName || "Unknown",
+          mobileNumber: d.mobileNumber || "",
+          profilePic: d.profilePic,
+          amount: li.amount || 0,
+          equipmentName: li.description || "",
+          createdAt: li.timestamp || Date.now(),
+        })),
+      total: d.totalAmount || 0,
+    }))
+    .sort((a, b) => (b.total || 0) - (a.total || 0));
 }
 
 function formatDate(ts?: number) {
@@ -122,7 +133,10 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
 
   const [dateStr, setDateStr] = React.useState(() => {
     if (existingDate) {
-      return `${existingDate.getDate()}/${existingDate.getMonth() + 1}/${existingDate.getFullYear()}`;
+      const d = String(existingDate.getDate()).padStart(2, "0");
+      const m = String(existingDate.getMonth() + 1).padStart(2, "0");
+      const y = existingDate.getFullYear();
+      return `${d}/${m}/${y}`;
     }
     return "";
   });
@@ -135,7 +149,10 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
     if (visible && debt) {
       const ed = debt.reminderDate ? new Date(debt.reminderDate) : null;
       if (ed) {
-        setDateStr(`${ed.getDate()}/${ed.getMonth() + 1}/${ed.getFullYear()}`);
+        const d = String(ed.getDate()).padStart(2, "0");
+        const m = String(ed.getMonth() + 1).padStart(2, "0");
+        const y = ed.getFullYear();
+        setDateStr(`${d}/${m}/${y}`);
         setHours(ed.getHours());
         setMinutes(ed.getMinutes());
       } else {
@@ -263,39 +280,35 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
           <Text style={[reminderStyles.label, { color: colors.foreground }]}>
             {t("reminderDate")}
           </Text>
-          <TextInput
-            style={[
-              reminderStyles.input,
-              { flex: 1 },
-              {
-                borderColor: colors.border,
-                color: colors.foreground,
-                backgroundColor: colors.background,
-                borderRadius: colors.radius,
-              },
-            ]}
-            value={dateStr}
-            onChangeText={setDateStr}
-            placeholder={t("datePlaceholder")}
-            placeholderTextColor={colors.mutedForeground}
-            keyboardType="numeric"
-          />
-          <Pressable
-            style={[
-              reminderStyles.calendarBtn,
-              {
-                backgroundColor: colors.primary + "18",
-                borderRadius: colors.radius,
-              },
-            ]}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <MaterialIcons
-              name="calendar-month"
-              size={22}
-              color={colors.primary}
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TextInput
+              style={[
+                reminderStyles.input,
+                { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1.5, height: 52, borderRadius: colors.radius, paddingHorizontal: 14 },
+              ]}
+              value={dateStr}
+              onChangeText={setDateStr}
+              placeholder={t("datePlaceholder")}
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="numeric"
             />
-          </Pressable>
+            <Pressable
+              style={[
+                reminderStyles.calendarBtn,
+                {
+                  backgroundColor: colors.primary + "18",
+                  borderRadius: colors.radius,
+                },
+              ]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <MaterialIcons
+                name="calendar-month"
+                size={22}
+                color={colors.primary}
+              />
+            </Pressable>
+          </View>
 
           <Text style={[reminderStyles.label, { color: colors.foreground }]}>
             {t("reminderTime")}
@@ -368,10 +381,10 @@ function ReminderModal({ visible, debt, onClose, onSave }: ReminderModalProps) {
           onChange={(event: any, selectedDate: any) => {
             setShowDatePicker(false);
             if (selectedDate) {
-              const day = selectedDate.getDate();
-              const month = selectedDate.getMonth() + 1;
-              const year = selectedDate.getFullYear();
-              setDateStr(`${day}/${month}/${year}`);
+              const d = String(selectedDate.getDate()).padStart(2, "0");
+              const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+              const y = selectedDate.getFullYear();
+              setDateStr(`${d}/${m}/${y}`);
             }
           }}
         />
@@ -527,6 +540,7 @@ interface GroupCardProps {
   onPaidDebt: (id: string) => void;
   onDeleteDebtItem: (debtId: string, itemId: string) => void;
   onPaidDebtItem: (debtId: string, itemId: string) => void;
+  onEditCustomer: (debtId: string) => void;
   onEditDebtItem: (debtId: string, item: any) => void;
   onQR: (amount: number) => void;
   onBellPress: (debt: PendingDebt) => void;
@@ -538,6 +552,7 @@ function GroupCard({
   onPaidDebt,
   onDeleteDebtItem,
   onPaidDebtItem,
+  onEditCustomer,
   onEditDebtItem,
   onQR,
   onBellPress,
@@ -556,8 +571,9 @@ function GroupCard({
       const msg = msgTemplate
         .replace("{name}", group.contactName)
         .replace("{amount}", group.total.toFixed(2));
+      const cleanPhone = group.mobileNumber.replace(/\D/g, "");
       Linking.openURL(
-        `https://wa.me/91${group.mobileNumber.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`,
+        `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`,
       );
     }
   };
@@ -637,18 +653,33 @@ function GroupCard({
     >
       <View style={styles.groupHeader}>
         <View
-          style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}
+          style={[styles.avatar, { backgroundColor: (colors.primary || "#000") + "20" }]}
         >
-          <Text style={[styles.avatarText, { color: colors.primary }]}>
-            {group.contactName.charAt(0).toUpperCase()}
-          </Text>
+          {typeof group?.profilePic === "string" && group.profilePic !== "" ? (
+            <Image
+              source={{ uri: group.profilePic }}
+              style={{ width: 48, height: 48, borderRadius: 24 }}
+            />
+          ) : (
+            <Text style={[styles.avatarText, { color: colors.primary }]}>
+              {(group?.contactName || "U").charAt(0).toUpperCase()}
+            </Text>
+          )}
         </View>
 
         <View style={styles.groupInfo}>
-          <Text style={[styles.groupName, { color: colors.foreground }]}>
-            {group.contactName}
-          </Text>
-          {!!group.mobileNumber && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={[styles.groupName, { color: colors.foreground }]}>
+              {group?.contactName || "Unknown"}
+            </Text>
+            <Pressable
+              onPress={() => group?.key && onEditCustomer(group.key)}
+              hitSlop={12}
+            >
+              <MaterialIcons name="edit" size={16} color={colors.primary} />
+            </Pressable>
+          </View>
+          {!!group?.mobileNumber && (
             <Text
               style={[styles.groupPhone, { color: colors.mutedForeground }]}
             >
@@ -659,11 +690,11 @@ function GroupCard({
             <View
               style={[
                 styles.countBadge,
-                { backgroundColor: colors.primary + "18" },
+                { backgroundColor: (colors.primary || "#000") + "18" },
               ]}
             >
               <Text style={[styles.countText, { color: colors.primary }]}>
-                {group.debts.length} {t("groupDebts")}
+                {(group?.debts || []).length} {t("groupDebts")}
               </Text>
             </View>
           </View>
@@ -671,18 +702,18 @@ function GroupCard({
 
         <View style={styles.groupRight}>
           <Text style={[styles.groupTotal, { color: colors.primary }]}>
-            ₹{group.total.toFixed(0)}
+            ₹{(group?.total || 0).toFixed(0)}
           </Text>
           <View style={styles.groupRightActions}>
             <Pressable
               style={[
                 styles.groupQrBtn,
                 {
-                  backgroundColor: colors.primary + "18",
+                  backgroundColor: (colors.primary || "#000") + "18",
                   borderRadius: colors.radius,
                 },
               ]}
-              onPress={() => onQR(group.total)}
+              onPress={() => group?.total && onQR(group.total)}
             >
               <MaterialIcons name="qr-code" size={14} color={colors.primary} />
               <Text style={[styles.groupQrText, { color: colors.primary }]}>
@@ -697,7 +728,7 @@ function GroupCard({
                   borderRadius: colors.radius,
                 },
               ]}
-              onPress={() => handlePaid(group.key)}
+              onPress={() => group?.key && handlePaid(group.key)}
             >
               <MaterialIcons name="check-circle" size={14} color="#2E7D32" />
               <Text style={[styles.groupPaidText, { color: "#2E7D32" }]}>
@@ -709,12 +740,12 @@ function GroupCard({
                 styles.bellBtn,
                 {
                   backgroundColor: latestDebt?.reminderDate
-                    ? colors.primary + "20"
+                    ? (colors.primary || "#000") + "20"
                     : colors.secondary,
                   borderRadius: 8,
                 },
               ]}
-              onPress={() => onBellPress(latestDebt)}
+              onPress={() => latestDebt && onBellPress(latestDebt)}
               hitSlop={8}
             >
               <MaterialIcons
@@ -732,7 +763,7 @@ function GroupCard({
       </View>
 
       <View style={[styles.groupActions, { borderTopColor: colors.border }]}>
-        {!!group.mobileNumber && (
+        {!!group?.mobileNumber && (
           <>
             <Pressable style={styles.actionBtn} onPress={handleCall}>
               <MaterialIcons name="call" size={16} color={colors.primary} />
@@ -773,19 +804,19 @@ function GroupCard({
         <View
           style={[styles.itemsContainer, { borderTopColor: colors.border }]}
         >
-          {group.debts.map((debt, idx) => (
+          {(group?.debts || []).map((debt, idx) => (
             <View
-              key={debt.id}
+              key={debt?.id || String(idx)}
               style={[
                 styles.debtItem,
-                idx < group.debts.length - 1 && {
+                idx < (group?.debts || []).length - 1 && {
                   borderBottomColor: colors.border,
                   borderBottomWidth: StyleSheet.hairlineWidth,
                 },
               ]}
             >
               <View style={styles.debtItemLeft}>
-                {!!debt.equipmentName && (
+                {!!debt?.equipmentName && (
                   <Text
                     style={[styles.debtEquipName, { color: colors.foreground }]}
                   >
@@ -795,11 +826,11 @@ function GroupCard({
                 <View style={styles.sourceBadgeRow}>
                   <View style={[styles.sourceBadge, { backgroundColor: colors.secondary }]}>
                     <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>
-                      {debt.source || "Manual"}
+                      {debt?.source || "Manual"}
                     </Text>
                   </View>
                 </View>
-                {!!debt.reminderDate && (
+                {!!debt?.reminderDate && (
                   <View style={styles.reminderRow}>
                     <MaterialIcons
                       name="alarm"
@@ -816,13 +847,13 @@ function GroupCard({
                 <Text
                   style={[styles.debtDate, { color: colors.mutedForeground }]}
                 >
-                  {formatDate(debt.createdAt)}
+                  {formatDate(debt?.createdAt)}
                 </Text>
               </View>
 
               <View style={styles.debtItemRight}>
                 <Text style={[styles.debtAmount, { color: colors.primary }]}>
-                  ₹{debt.amount.toFixed(0)}
+                  ₹{(debt?.amount || 0).toFixed(0)}
                 </Text>
                 <View style={styles.debtActions}>
                   <Pressable
@@ -833,7 +864,7 @@ function GroupCard({
                         borderRadius: 8,
                       },
                     ]}
-                    onPress={() => onEditDebtItem(group.key, debt)}
+                    onPress={() => group?.key && debt && onEditDebtItem(group.key, debt)}
                     hitSlop={6}
                   >
                     <MaterialIcons
@@ -851,11 +882,11 @@ function GroupCard({
                     style={[
                       styles.debtActionBtn,
                       {
-                        backgroundColor: colors.primary + "18",
+                        backgroundColor: (colors.primary || "#000") + "18",
                         borderRadius: 8,
                       },
                     ]}
-                    onPress={() => onQR(debt.amount)}
+                    onPress={() => debt?.amount && onQR(debt.amount)}
                     hitSlop={6}
                   >
                     <MaterialIcons
@@ -874,7 +905,7 @@ function GroupCard({
                       styles.debtActionBtn,
                       { backgroundColor: "#2E7D3218", borderRadius: 8 },
                     ]}
-                    onPress={() => handlePaidItem(group.key, debt.id)}
+                    onPress={() => group?.key && debt?.id && handlePaidItem(group.key, debt.id)}
                     hitSlop={6}
                   >
                     <MaterialIcons
@@ -887,30 +918,30 @@ function GroupCard({
                     </Text>
                   </Pressable>
                   <Pressable
-                    onPress={() => onBellPress(debt)}
+                    onPress={() => debt && onBellPress(debt)}
                     hitSlop={8}
                     style={[
                       styles.debtActionBtn,
                       {
-                        backgroundColor: debt.reminderDate
-                          ? colors.primary + "18"
+                        backgroundColor: debt?.reminderDate
+                          ? (colors.primary || "#000") + "18"
                           : colors.secondary,
                         borderRadius: 8,
                       },
                     ]}
                   >
                     <MaterialIcons
-                      name={debt.reminderDate ? "alarm-on" : "add-alarm"}
+                      name={debt?.reminderDate ? "alarm-on" : "add-alarm"}
                       size={14}
                       color={
-                        debt.reminderDate
+                        debt?.reminderDate
                           ? colors.primary
                           : colors.mutedForeground
                       }
                     />
                   </Pressable>
                   <Pressable
-                    onPress={() => handleDeleteItem(group.key, debt.id)}
+                    onPress={() => group?.key && debt?.id && handleDeleteItem(group.key, debt.id)}
                     hitSlop={8}
                     style={{ padding: 4 }}
                   >
@@ -953,6 +984,7 @@ export default function PendingTab() {
     debtId: string;
     item: any;
   } | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<PendingDebt | null>(null);
 
   const groups = useMemo(() => groupDebts(pendingDebts), [pendingDebts]);
   const totalOwed = useMemo(
@@ -1006,7 +1038,7 @@ export default function PendingTab() {
       )}
 
       <ScrollView
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
       >
         {groups.length === 0 ? (
@@ -1034,6 +1066,10 @@ export default function PendingTab() {
               onPaidDebt={markPendingPaid}
               onDeleteDebtItem={deletePendingItem}
               onPaidDebtItem={markPendingItemPaid}
+              onEditCustomer={(debtId) => {
+                const debt = pendingDebts.find(d => d.id === debtId);
+                if (debt) setEditingCustomer(debt);
+              }}
               onEditDebtItem={(debtId, item) => setEditingItem({ debtId, item })}
               onQR={(amount) => setQrAmount(amount)}
               onBellPress={(debt) => setReminderDebt(debt)}
@@ -1088,6 +1124,18 @@ export default function PendingTab() {
         onSave={handleReminderSave}
       />
 
+      <EditCustomerModal
+        visible={!!editingCustomer}
+        debt={editingCustomer}
+        onClose={() => setEditingCustomer(null)}
+        onSave={(updates) => {
+          if (editingCustomer) {
+            updatePendingDebt(editingCustomer.id, updates);
+          }
+          setEditingCustomer(null);
+        }}
+      />
+
       <EditItemModal
         visible={!!editingItem}
         item={editingItem?.item}
@@ -1100,6 +1148,203 @@ export default function PendingTab() {
         }}
       />
     </View>
+  );
+}
+
+function EditCustomerModal({
+  visible,
+  debt,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  debt: PendingDebt | null;
+  onClose: () => void;
+  onSave: (updates: any) => void;
+}) {
+  const { t } = useApp();
+  const colors = useColors();
+  const [contactName, setContactName] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (visible && debt) {
+      setContactName(debt?.contactName || "");
+      setMobileNumber(debt?.mobileNumber || "");
+      setProfilePic(debt?.profilePic);
+    }
+  }, [visible, debt]);
+
+  const pickProfilePic = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setProfilePic(String(result.assets[0].uri));
+      }
+    } catch (e) {
+      console.error("Document picker error:", e);
+    }
+  };
+
+  const pickContact = async () => {
+    if (Platform.OS === "web") return;
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("contactsPermission"));
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Image,
+        ],
+      });
+      if (contact) {
+        setContactName(contact.name || "");
+        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+          setMobileNumber(
+            contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
+          );
+        }
+        const photoUri = contact.image?.uri ? String(contact.image.uri) : undefined;
+        setProfilePic(photoUri);
+      }
+    } catch (err) {
+      console.error("Error picking contact:", err);
+    }
+  };
+
+  const handleSave = () => {
+    if (!contactName.trim()) {
+      Alert.alert(t("missingField"), t("enterContactName"));
+      return;
+    }
+    onSave({
+      contactName: contactName.trim(),
+      mobileNumber: mobileNumber.trim(),
+      profilePic: profilePic,
+    });
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.modalOverlay}
+      >
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card || "#fff" }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                Edit Customer
+              </Text>
+              <Pressable onPress={onClose}>
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
+
+            <View style={{ alignItems: "center", marginBottom: 16 }}>
+              <Pressable onPress={pickProfilePic} style={styles.editAvatar}>
+                {typeof profilePic === "string" && profilePic !== "" ? (
+                  <Image source={{ uri: profilePic }} style={styles.editAvatarImg} />
+                ) : (
+                  <View style={[styles.editAvatarPlaceholder, { backgroundColor: colors.secondary || "#eee" }]}>
+                    <MaterialIcons name="person" size={40} color={colors.primary} />
+                  </View>
+                )}
+                <View style={[styles.editBadge, { backgroundColor: colors.primary || "#000" }]}>
+                  <MaterialIcons name="edit" size={12} color="#fff" />
+                </View>
+              </Pressable>
+            </View>
+
+            <Pressable
+              style={[styles.contactPickBtnSmall, { backgroundColor: colors.secondary || "#eee", borderRadius: colors.radius || 8 }]}
+              onPress={pickContact}
+            >
+              <MaterialIcons name="contacts" size={16} color={colors.primary} />
+              <Text style={[styles.contactPickTextSmall, { color: colors.primary }]}>
+                {t("pickFromContacts")}
+              </Text>
+            </Pressable>
+
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("contactName")}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
+              value={contactName}
+              onChangeText={setContactName}
+              placeholder={t("enterContactName")}
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("mobileNumber")}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
+              value={mobileNumber}
+              onChangeText={(t) => setMobileNumber(t.replace(/\D/g, ""))}
+              placeholder={t("phonePlaceholder")}
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="phone-pad"
+            />
+
+            <Pressable
+              style={[
+                styles.saveBtn,
+                { backgroundColor: colors.primary || "#000", borderRadius: colors.radius || 8 },
+              ]}
+              onPress={handleSave}
+            >
+              <Text
+                style={[
+                  styles.saveBtnText,
+                  { color: colors.primaryForeground || "#fff" },
+                ]}
+              >
+                {t("save")}
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -1121,8 +1366,8 @@ function EditItemModal({
 
   React.useEffect(() => {
     if (visible && item) {
-      setAmount(String(item.amount));
-      setDescription(item.description || item.equipmentName || "");
+      setAmount(String(item?.amount || ""));
+      setDescription(item?.description || item?.equipmentName || "");
     }
   }, [visible, item]);
 
@@ -1132,8 +1377,11 @@ function EditItemModal({
       Alert.alert(t("missingField"), t("enterValidAmount"));
       return;
     }
-    onSave({ amount: safeAmount, description });
+
+    onSave({ amount: safeAmount, description: description || "" });
   };
+
+  if (!visible) return null;
 
   return (
     <Modal
@@ -1146,76 +1394,78 @@ function EditItemModal({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.modalOverlay}
       >
-        <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              Edit Item
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                Edit Item
+              </Text>
+              <Pressable onPress={onClose}>
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("amount")}
             </Text>
-            <Pressable onPress={onClose}>
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={colors.mutedForeground}
-              />
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {t("notes") || "Description"}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  borderRadius: colors.radius,
+                },
+              ]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="e.g. Extra hours"
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <Pressable
+              style={[
+                styles.saveBtn,
+                { backgroundColor: colors.primary, borderRadius: colors.radius },
+              ]}
+              onPress={handleSave}
+            >
+              <Text
+                style={[
+                  styles.saveBtnText,
+                  { color: colors.primaryForeground },
+                ]}
+              >
+                {t("save")}
+              </Text>
             </Pressable>
           </View>
-
-          <Text style={[styles.label, { color: colors.foreground }]}>
-            {t("amount")}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                borderColor: colors.border,
-                color: colors.foreground,
-                backgroundColor: colors.background,
-                borderRadius: colors.radius,
-              },
-            ]}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            placeholderTextColor={colors.mutedForeground}
-          />
-
-          <Text style={[styles.label, { color: colors.foreground }]}>
-            {t("notes") || "Description"}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                borderColor: colors.border,
-                color: colors.foreground,
-                backgroundColor: colors.background,
-                borderRadius: colors.radius,
-              },
-            ]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="e.g. Extra hours"
-            placeholderTextColor={colors.mutedForeground}
-          />
-
-          <Pressable
-            style={[
-              styles.saveBtn,
-              { backgroundColor: colors.primary, borderRadius: colors.radius },
-            ]}
-            onPress={handleSave}
-          >
-            <Text
-              style={[
-                styles.saveBtnText,
-                { color: colors.primaryForeground },
-              ]}
-            >
-              {t("save")}
-            </Text>
-          </Pressable>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -1500,6 +1750,48 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  editAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    position: "relative",
+  },
+  editAvatarImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  editAvatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  contactPickBtnSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    gap: 6,
+    marginBottom: 12,
+  },
+  contactPickTextSmall: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   label: {
     fontSize: 14,

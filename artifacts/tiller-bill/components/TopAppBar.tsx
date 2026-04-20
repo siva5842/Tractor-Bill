@@ -124,7 +124,14 @@ export function TopAppBar({ onProfilePress, onCalculatorPress, title }: Props) {
             onPress={onProfilePress}
             style={[styles.avatar, { backgroundColor: colors.primaryForeground + "22" }]}
           >
-            <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>{initials}</Text>
+            {profile.photoUri ? (
+              <Image
+                source={{ uri: profile.photoUri }}
+                style={{ width: "100%", height: "100%", borderRadius: 20 }}
+              />
+            ) : (
+              <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>{initials}</Text>
+            )}
           </Pressable>
         </View>
       </View>

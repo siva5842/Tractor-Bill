@@ -87,6 +87,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       GoogleSignin.configure({
         webClientId:
           "234691857286-bktdmjbvs55m10rc4ds78gliid4si6nm.apps.googleusercontent.com",
+        scopes: [
+          "https://www.googleapis.com/auth/drive.appdata",
+          "https://www.googleapis.com/auth/drive.file",
+        ],
+        offlineAccess: true,
       });
     }
 
@@ -160,6 +165,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    try {
+      if (Platform.OS !== "web") {
+        await GoogleSignin.signOut();
+      }
+    } catch (e) {
+      console.error("[Sign Out Error]", e);
+    }
     setProfile((prev) => {
       const next = {
         ...prev,

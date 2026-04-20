@@ -116,6 +116,35 @@ export async function restoreFromDrive(accessToken: string): Promise<SyncResult>
   }
 }
 
+export async function wipeAppDataFromDrive(accessToken: string): Promise<SyncResult> {
+  try {
+    const res = await fetch(
+      `${DRIVE_FILES_URL}?spaces=appDataFolder&fields=files(id,name)`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) {
+      throw new Error(`Drive list failed: ${await res.text()}`);
+    }
+    const json = await res.json();
+    const files = json?.files ?? [];
+
+    for (const file of files) {
+      const delRes = await fetch(`${DRIVE_FILES_URL}/${file.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!delRes.ok) {
+        console.error(`Failed to delete file ${file.id}: ${await delRes.text()}`);
+      }
+    }
+
+    return { success: true, message: "wipeSuccess" };
+  } catch (e) {
+    console.error("wipeAppDataFromDrive error:", e);
+    return { success: false, message: "wipeError" };
+  }
+}
+
 async function findBackupFileId(accessToken: string): Promise<string | null> {
   try {
     const res = await fetch(

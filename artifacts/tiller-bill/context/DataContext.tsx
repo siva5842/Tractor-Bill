@@ -59,6 +59,7 @@ export interface HistoryEntry {
   contactName?: string;
   mobileNumber?: string;
   profilePic?: string;
+  lineItems?: PendingDebtItem[];
   createdAt: number;
 }
 
@@ -305,6 +306,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const updatedLineItems = [...existing.lineItems, newLineItem];
           const updated: PendingDebt = {
             ...existing,
+            profilePic: debtData.profilePic || existing.profilePic, // Preserve or update image
             lineItems: updatedLineItems,
             totalAmount: updatedLineItems.reduce((sum, item) => sum + item.amount, 0),
             createdAt: Date.now(), // Bring to top
@@ -315,6 +317,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             id: makeId(),
             contactName: debtData.contactName,
             mobileNumber: debtData.mobileNumber,
+            profilePic: debtData.profilePic,
             lineItems: [newLineItem],
             totalAmount: debtData.amount,
             reminderDate: debtData.reminderDate,
@@ -390,7 +393,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             title: debt.contactName,
             amount: debt.totalAmount,
             contactName: debt.contactName,
+            mobileNumber: debt.mobileNumber,
+            profilePic: debt.profilePic,
             equipmentName: debt.lineItems.map(li => li.description).join(", "),
+            lineItems: JSON.parse(JSON.stringify(debt.lineItems)), // Deep copy
           };
           const newEntry: HistoryEntry = {
             ...entry,
@@ -449,7 +455,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           title: debt.contactName,
           amount: item.amount,
           contactName: debt.contactName,
+          mobileNumber: debt.mobileNumber,
+          profilePic: debt.profilePic,
           equipmentName: item.description,
+          lineItems: [JSON.parse(JSON.stringify(item))], // Deep copy single item
         };
         const newEntry: HistoryEntry = {
           ...entry,

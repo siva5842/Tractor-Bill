@@ -1,4 +1,6 @@
+import * as Contacts from "expo-contacts";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -15,7 +17,6 @@ import {
   Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
 
 import { TopAppBar } from "@/components/TopAppBar";
 import { ProfileModal } from "@/components/ProfileModal";
@@ -59,12 +60,15 @@ function sameMonth(ts: number, my: MonthYear) {
 interface HistoryCardProps {
   entry: HistoryEntry;
   onDelete: () => void;
-  onEdit: () => void;
+  onEditCustomer: () => void;
+  onEditLineItem: (item: any) => void;
+  onDeleteLineItem: (itemId: string) => void;
 }
 
-function HistoryCard({ entry, onDelete, onEdit }: HistoryCardProps) {
+function HistoryCard({ entry, onDelete, onEditCustomer, onEditLineItem, onDeleteLineItem }: HistoryCardProps) {
   const { t } = useApp();
   const colors = useColors();
+  const [expanded, setExpanded] = useState(false);
 
   const typeConfig = {
     session: { icon: "timer" as const, color: "#1565C0", labelKey: "historyTypeSession" as const },
@@ -75,271 +79,256 @@ function HistoryCard({ entry, onDelete, onEdit }: HistoryCardProps) {
   const cfg = typeConfig[entry.type];
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-      <View style={[styles.iconBadge, { backgroundColor: cfg.color + "18" }]}>
-        {entry.profilePic ? (
-          <Image
-            source={{ uri: entry.profilePic }}
-            style={styles.avatarImgSmall}
-          />
-        ) : (
-          <MaterialIcons name={cfg.icon} size={22} color={cfg.color} />
-        )}
-      </View>
-
-      <View style={styles.cardInfo}>
-        <View style={styles.cardTop}>
-          <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={1}>
-            {entry.title}
-          </Text>
-          <Text style={[styles.cardAmount, { color: "#2E7D32" }]}>
-            +₹{entry.amount.toFixed(0)}
-          </Text>
+    <View style={[styles.cardContainer, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <Pressable style={styles.cardMain} onPress={() => setExpanded(!expanded)}>
+        <View style={[styles.iconBadge, { backgroundColor: cfg.color + "18" }]}>
+          {entry.profilePic ? (
+            <Image
+              source={{ uri: String(entry.profilePic) }}
+              style={styles.avatarImgSmall}
+            />
+          ) : (
+            <MaterialIcons name={cfg.icon} size={22} color={cfg.color} />
+          )}
         </View>
-        <View style={styles.cardMeta}>
-          <View style={[styles.typeBadge, { backgroundColor: cfg.color + "18" }]}>
-            <Text style={[styles.typeLabel, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
+
+        <View style={styles.cardInfo}>
+          <View style={styles.cardTop}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={1}>
+                {entry.title}
+              </Text>
+              <Pressable onPress={onEditCustomer} hitSlop={12}>
+                <MaterialIcons name="edit" size={14} color={colors.primary} />
+              </Pressable>
+            </View>
+            <Text style={[styles.cardAmount, { color: "#2E7D32" }]}>
+              +₹{entry.amount.toFixed(0)}
+            </Text>
           </View>
-          {entry.equipmentName && entry.type !== "session" && (
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1}>
-              · {entry.equipmentName}
-            </Text>
-          )}
-          {!!entry.durationSeconds && (
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-              · {formatTime(entry.durationSeconds)}
-            </Text>
-          )}
+          <View style={styles.cardMeta}>
+            <View style={[styles.typeBadge, { backgroundColor: cfg.color + "18" }]}>
+              <Text style={[styles.typeLabel, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
+            </View>
+            {entry.lineItems && entry.lineItems.length > 0 && (
+              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+                · {entry.lineItems.length} {entry.lineItems.length === 1 ? t("item") : t("items")}
+              </Text>
+            )}
+            <MaterialIcons 
+              name={expanded ? "expand-less" : "expand-more"} 
+              size={18} 
+              color={colors.mutedForeground} 
+            />
+          </View>
+          <Text style={[styles.dateText, { color: colors.mutedForeground }]}>
+            {formatDate(entry.createdAt)}
+          </Text>
         </View>
-        <Text style={[styles.dateText, { color: colors.mutedForeground }]}>
-          {formatDate(entry.createdAt)}
-        </Text>
-      </View>
 
-      <View style={styles.cardActions}>
-        <TouchableOpacity
-          onPress={onEdit}
-          style={styles.actionBtn}
-          activeOpacity={0.5}
-        >
-          <MaterialIcons name="edit" size={20} color={colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onDelete}
-          style={styles.actionBtn}
-          activeOpacity={0.5}
-        >
-          <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            onPress={onDelete}
+            style={styles.actionBtn}
+            activeOpacity={0.5}
+          >
+            <MaterialIcons name="delete-outline" size={22} color={colors.destructive} />
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+
+      {expanded && entry.lineItems && entry.lineItems.length > 0 && (
+        <View style={[styles.ledger, { borderTopColor: colors.border }]}>
+          {entry.lineItems.map((item) => (
+            <View key={item.id} style={[styles.ledgerItem, { borderBottomColor: colors.border }]}>
+              <View style={styles.itemInfo}>
+                <Text style={[styles.itemDesc, { color: colors.foreground }]}>{item.description}</Text>
+                <Text style={[styles.itemDate, { color: colors.mutedForeground }]}>{formatDate(item.timestamp)}</Text>
+              </View>
+              <Text style={[styles.itemAmount, { color: colors.foreground }]}>₹{item.amount.toFixed(2)}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", paddingLeft: 8 }}>
+                <Pressable onPress={() => onEditLineItem(item)} hitSlop={6} style={{ paddingHorizontal: 6 }}>
+                  <MaterialIcons name="edit" size={16} color={colors.primary} />
+                </Pressable>
+                <Pressable onPress={() => onDeleteLineItem(item.id)} hitSlop={6} style={{ paddingHorizontal: 6 }}>
+                  <MaterialIcons name="delete-outline" size={18} color={colors.destructive} />
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
-interface EditHistoryModalProps {
+interface EditHistoryCustomerModalProps {
   visible: boolean;
   entry: HistoryEntry | null;
   onClose: () => void;
   onSave: (id: string, updates: Partial<HistoryEntry>) => void;
 }
 
-function EditHistoryModal({ visible, entry, onClose, onSave }: EditHistoryModalProps) {
+function EditHistoryCustomerModal({ visible, entry, onClose, onSave }: EditHistoryCustomerModalProps) {
   const { t } = useApp();
   const colors = useColors();
   const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
-  const [dateStr, setDateStr] = useState("");
   const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
 
   React.useEffect(() => {
     if (entry) {
       setTitle(entry.title);
-      setAmount(entry.amount.toString());
       setPhone(entry.mobileNumber || "");
       setProfilePic(entry.profilePic);
-      const d = new Date(entry.createdAt);
-      const day = String(d.getDate()).padStart(2, "0");
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const year = d.getFullYear();
-      setDateStr(`${day}/${month}/${year}`);
     }
   }, [entry]);
 
   const pickProfilePic = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
-      return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Document picker error:", e);
     }
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled) {
-      setProfilePic(result.assets[0].uri);
+  const pickContact = async () => {
+    if (Platform.OS === "web") return;
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("contactsPermission"));
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Image,
+        ],
+      });
+      if (contact) {
+        setTitle(contact.name || "");
+        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+          setPhone(contact.phoneNumbers[0].number?.replace(/\s/g, "") || "");
+        }
+        const photoUri = contact.image?.uri ? String(contact.image.uri) : undefined;
+        setProfilePic(photoUri);
+      }
+    } catch (err) {
+      console.error("Error picking contact:", err);
     }
   };
 
   const handleSave = () => {
     if (!entry) return;
+    onSave(entry.id, {
+      title: title.trim(),
+      contactName: title.trim(),
+      mobileNumber: phone.trim(),
+      profilePic,
+    });
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.card, borderRadius: 20 }]}>
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit Customer</Text>
+          <ScrollView style={styles.modalScroll}>
+            <View style={styles.photoSection}>
+              <Pressable onPress={pickProfilePic} style={[styles.photoBtn, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                {profilePic ? <Image source={{ uri: String(profilePic) }} style={styles.profilePic} /> : <MaterialIcons name="add-a-photo" size={32} color={colors.primary} />}
+              </Pressable>
+              <Text style={[styles.photoLabel, { color: colors.mutedForeground }]}>{profilePic ? t("changeQR") : t("addPhoto")}</Text>
+            </View>
+            <Pressable style={[styles.contactPickBtn, { backgroundColor: colors.secondary, borderRadius: colors.radius, marginHorizontal: 20, marginBottom: 16 }]} onPress={pickContact}>
+              <MaterialIcons name="contacts" size={20} color={colors.primary} />
+              <Text style={[styles.contactPickText, { color: colors.primary }]}>{t("pickFromContacts")}</Text>
+            </Pressable>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.foreground }]}>{t("contactName")}</Text>
+              <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]} value={title} onChangeText={setTitle} placeholder={t("enterContactName")} placeholderTextColor={colors.mutedForeground} />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.foreground }]}>{t("mobileNumber")}</Text>
+              <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]} value={phone} onChangeText={(t) => setPhone(t.replace(/\D/g, ""))} placeholder={t("phonePlaceholder")} placeholderTextColor={colors.mutedForeground} keyboardType="phone-pad" />
+            </View>
+          </ScrollView>
+          <View style={styles.modalActions}>
+            <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}><Text style={{ color: colors.foreground }}>{t("cancel")}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={handleSave} style={[styles.modalBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}><Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text></TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+interface EditHistoryItemModalProps {
+  visible: boolean;
+  entry: HistoryEntry | null;
+  item: any;
+  onClose: () => void;
+  onSave: (id: string, updates: Partial<HistoryEntry>) => void;
+}
+
+function EditHistoryItemModal({ visible, entry, item, onClose, onSave }: EditHistoryItemModalProps) {
+  const { t } = useApp();
+  const colors = useColors();
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+
+  React.useEffect(() => {
+    if (item) {
+      setAmount(item.amount.toString());
+      setDescription(item.description || "");
+    }
+  }, [item]);
+
+  const handleSave = () => {
+    if (!entry || !item) return;
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt < 0) {
       Alert.alert(t("error"), t("enterValidAmount"));
       return;
     }
 
-    let finalCreatedAt = entry.createdAt;
-    if (dateStr) {
-      const parts = dateStr.split("/");
-      if (parts.length === 3) {
-        const d = new Date(
-          parseInt(parts[2]),
-          parseInt(parts[1]) - 1,
-          parseInt(parts[0])
-        );
-        if (!isNaN(d.getTime())) {
-          finalCreatedAt = d.getTime();
-        }
-      }
-    }
+    const newLineItems = entry.lineItems?.map((li: any) =>
+      li.id === item.id ? { ...li, amount: amt, description: description.trim() } : li
+    );
+    const newTotal = newLineItems?.reduce((sum: number, li: any) => sum + li.amount, 0) || 0;
 
     onSave(entry.id, {
-      title: title.trim(),
-      contactName: title.trim(),
-      amount: amt,
-      mobileNumber: phone.trim(),
-      profilePic,
-      createdAt: finalCreatedAt,
+      lineItems: newLineItems,
+      amount: newTotal,
     });
     onClose();
   };
 
-  const handlePhoneChange = (text: string) => {
-    setPhone(text.replace(/[^0-9]/g, ""));
-  };
-
-  const handleDateParsing = (text: string, setter: (val: string) => void) => {
-    let raw = text.replace(/[^0-9]/g, "");
-    if (raw.length === 8) {
-      const formatted =
-        raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
-      setter(formatted);
-    } else {
-      setter(text);
-    }
-  };
-
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.modalOverlay}
-      >
-        <View style={[styles.modalContent, { backgroundColor: colors.card, borderRadius: 20 }]}>
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("editHistory")}</Text>
-
-          <ScrollView style={styles.modalScroll}>
-            <View style={styles.photoSection}>
-              <Pressable
-                onPress={pickProfilePic}
-                style={[
-                  styles.photoBtn,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                {profilePic ? (
-                  <Image
-                    source={{ uri: profilePic }}
-                    style={styles.profilePic}
-                  />
-                ) : (
-                  <MaterialIcons
-                    name="add-a-photo"
-                    size={32}
-                    color={colors.primary}
-                  />
-                )}
-              </Pressable>
-              <Text
-                style={[styles.photoLabel, { color: colors.mutedForeground }]}
-              >
-                {profilePic ? t("changeQR") : t("addPhoto")}
-              </Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.foreground }]}>{t("contactName")}</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
-                value={title}
-                onChangeText={setTitle}
-                placeholder={t("enterContactName")}
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.foreground }]}>{t("mobileNumber")}</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
-                value={phone}
-                onChangeText={handlePhoneChange}
-                placeholder={t("phonePlaceholder")}
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.foreground }]}>{t("amount")}</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
-                value={amount}
-                onChangeText={setAmount}
-                placeholder={t("amountPlaceholder")}
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.foreground }]}>
-                {t("date") || "Date"}
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: colors.border,
-                    color: colors.foreground,
-                    backgroundColor: colors.background,
-                    borderRadius: colors.radius,
-                  },
-                ]}
-                value={dateStr}
-                onChangeText={(text) => handleDateParsing(text, setDateStr)}
-                placeholder="DD/MM/YYYY"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="numeric"
-              />
-            </View>
-          </ScrollView>
-
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.card, borderRadius: 20, marginBottom: "20%" }]}>
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit Item</Text>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>{t("amount")}</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]} value={amount} onChangeText={setAmount} placeholder={t("amountPlaceholder")} placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>{t("notes")}</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]} value={description} onChangeText={setDescription} placeholder="Description" placeholderTextColor={colors.mutedForeground} />
+          </View>
           <View style={styles.modalActions}>
-            <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
-              <Text style={{ color: colors.foreground }}>{t("cancel")}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={[styles.modalBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}>
-              <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text>
-            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}><Text style={{ color: colors.foreground }}>{t("cancel")}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={handleSave} style={[styles.modalBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}><Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text></TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -362,6 +351,8 @@ export default function HistoryTab() {
   });
 
   const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<HistoryEntry | null>(null);
+  const [editingItem, setEditingItem] = useState<{ entry: HistoryEntry; item: any } | null>(null);
 
   const totalIncome = useMemo(
     () => historyEntries.reduce((sum, e) => sum + e.amount, 0),
@@ -425,6 +416,38 @@ export default function HistoryTab() {
     }
   };
 
+  const handleDeleteLineItem = (entryId: string, itemId: string) => {
+    const entry = historyEntries.find((e) => e.id === entryId);
+    if (!entry || !entry.lineItems) return;
+
+    const doDelete = () => {
+      const newLineItems = entry.lineItems!.filter((li) => li.id !== itemId);
+      if (newLineItems.length === 0) {
+        deleteHistoryEntry(entryId);
+      } else {
+        const newTotal = newLineItems.reduce((sum, li) => sum + li.amount, 0);
+        updateHistoryEntry(entryId, {
+          lineItems: newLineItems,
+          amount: newTotal,
+        });
+      }
+    };
+
+    if (!confirmationSettings.confirmDeletions) {
+      doDelete();
+      return;
+    }
+
+    Alert.alert(
+      t("deletePendingTitle") || "Delete Item",
+      t("deletePendingMsg") || "Are you sure you want to delete this record?",
+      [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("delete"), style: "destructive", onPress: doDelete },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <TopAppBar
@@ -434,9 +457,8 @@ export default function HistoryTab() {
       />
 
       <ScrollView
-        stickyHeaderIndices={[1]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
         <View style={styles.analyticsSection}>
           <View style={[styles.analyticsCard, { backgroundColor: "#2E7D32" + "12", borderColor: "#2E7D32" + "44", borderRadius: colors.radius }]}>
@@ -521,17 +543,27 @@ export default function HistoryTab() {
                 key={entry.id}
                 entry={entry}
                 onDelete={() => handleDeleteEntry(entry.id)}
-                onEdit={() => setEditingEntry(entry)}
+                onEditCustomer={() => setEditingCustomer(entry)}
+                onEditLineItem={(item) => setEditingItem({ entry, item })}
+                onDeleteLineItem={(itemId) => handleDeleteLineItem(entry.id, itemId)}
               />
             ))}
           </View>
         )}
       </ScrollView>
 
-      <EditHistoryModal
-        visible={!!editingEntry}
-        entry={editingEntry}
-        onClose={() => setEditingEntry(null)}
+      <EditHistoryCustomerModal
+        visible={!!editingCustomer}
+        entry={editingCustomer}
+        onClose={() => setEditingCustomer(null)}
+        onSave={updateHistoryEntry}
+      />
+
+      <EditHistoryItemModal
+        visible={!!editingItem}
+        entry={editingItem?.entry || null}
+        item={editingItem?.item}
+        onClose={() => setEditingItem(null)}
         onSave={updateHistoryEntry}
       />
 
@@ -693,8 +725,60 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  cardContainer: {
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    overflow: "hidden",
+  },
+  cardMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 12,
+  },
+  ledger: {
+    borderTopWidth: 1,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.02)",
+  },
+  ledgerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 10,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemDesc: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  itemDate: {
+    fontSize: 11,
+  },
+  itemAmount: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
   actionBtn: {
-    padding: 4,
+    padding: 8,
+  },
+  contactPickBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    gap: 10,
+  },
+  contactPickText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
   deleteBtn: {
     padding: 4,

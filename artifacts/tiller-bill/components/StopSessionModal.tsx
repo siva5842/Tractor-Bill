@@ -1,10 +1,15 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Contacts from "expo-contacts";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,7 +26,7 @@ interface Props {
   equipment: Equipment;
   onGenerateQR: (amount: number, seconds: number) => void;
   onSaveToPending: (amount: number, seconds: number) => void;
-  onFinish: () => void;
+  onFinish: (customerData: { name: string; phone: string; image?: string }) => void;
   onClose: () => void;
 }
 
@@ -50,18 +55,72 @@ export function StopSessionModal({
   );
 
   const [showAmountEditor, setShowAmountEditor] = useState(false);
+  const [showCustomerEditor, setShowCustomerEditor] = useState(false);
   const [editableAmount, setEditableAmount] = useState(
     calculatedAmount.toFixed(2)
   );
   const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
   const [discountValue, setDiscountValue] = useState("");
 
+  const [contactName, setContactName] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (visible) {
       setEditableAmount(calculatedAmount.toFixed(2));
       setShowAmountEditor(false);
+      setShowCustomerEditor(false);
+      setContactName("");
+      setMobileNumber("");
+      setProfilePic(undefined);
     }
   }, [visible, calculatedAmount]);
+
+  const pickProfilePic = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Document picker error:", e);
+    }
+  };
+
+  const pickContact = async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status === "granted") {
+        const contact = await Contacts.presentContactPickerAsync({
+          fields: [
+            Contacts.Fields.Name,
+            Contacts.Fields.PhoneNumbers,
+            Contacts.Fields.Image,
+          ],
+        });
+
+        if (contact) {
+          setContactName(contact.name || "");
+          if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+            setMobileNumber(
+              contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
+            );
+          }
+          const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? contact.image.uri : undefined;
+          if (photoUri) {
+            setProfilePic(photoUri);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleQRPress = () => {
     if (Platform.OS !== "web")
@@ -106,9 +165,187 @@ export function StopSessionModal({
     onSaveToPending(finalAmount, totalSeconds);
   };
 
-  const handleFinish = () => {
-    onFinish();
+  const handleFinishPress = () => {
+    setShowCustomerEditor(true);
   };
+
+  const handleConfirmFinish = () => {
+    if (!contactName.trim()) {
+      Alert.alert(t("missingField"), t("enterContactName"));
+      return;
+    }
+    onFinish({
+      name: contactName.trim(),
+      phone: mobileNumber.trim(),
+      image: profilePic,
+    });
+  };
+
+  if (showCustomerEditor) {
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCustomerEditor(false)}
+      >
+        <View style={styles.overlay}>
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24 }]}
+          >
+            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
+              <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
+                <MaterialIcons name="person-add" size={40} color={colors.primary} />
+              </View>
+
+              <Text style={[styles.title, { color: colors.foreground }]}>
+                {t("customerDetails") || "Customer Details"}
+              </Text>
+
+              <View style={styles.photoSection}>
+                <Pressable
+                  onPress={pickProfilePic}
+                  style={[
+                    styles.photoBtn,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  {profilePic ? (
+                    <Image
+                      source={{ uri: profilePic }}
+                      style={styles.profilePic}
+                    />
+                  ) : (
+                    <MaterialIcons
+                      name="add-a-photo"
+                      size={32}
+                      color={colors.primary}
+                    />
+                  )}
+                </Pressable>
+                <Text
+                  style={[styles.photoLabel, { color: colors.mutedForeground }]}
+                >
+                  {profilePic ? t("changePhoto") : t("addPhoto")}
+                </Text>
+              </View>
+
+              <Pressable
+                style={[
+                  styles.contactPickBtn,
+                  {
+                    backgroundColor: colors.secondary,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+                onPress={pickContact}
+              >
+                <MaterialIcons name="contacts" size={20} color={colors.primary} />
+                <Text style={[styles.contactPickText, { color: colors.primary }]}>
+                  {t("pickFromContacts")}
+                </Text>
+              </Pressable>
+
+              <View style={{ width: '100%' }}>
+                <Text style={[styles.label, { color: colors.foreground }]}>
+                  {t("contactName")}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderRadius: colors.radius,
+                      borderWidth: 1.5,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      width: '100%',
+                    },
+                  ]}
+                  value={contactName}
+                  onChangeText={setContactName}
+                  placeholder={t("contactName")}
+                  placeholderTextColor={colors.mutedForeground}
+                />
+
+                <Text style={[styles.label, { color: colors.foreground, marginTop: 12 }]}>
+                  {t("mobileNumber")}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderRadius: colors.radius,
+                      borderWidth: 1.5,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      width: '100%',
+                      marginBottom: 20,
+                    },
+                  ]}
+                  value={mobileNumber}
+                  onChangeText={(t) => setMobileNumber(t.replace(/\D/g, ""))}
+                  placeholder={t("phonePlaceholder")}
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <Pressable
+                style={[
+                  styles.actionBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+                onPress={handleConfirmFinish}
+              >
+                <MaterialIcons name="check-circle" size={22} color={colors.primaryForeground} />
+                <Text
+                  style={[styles.actionBtnText, { color: colors.primaryForeground }]}
+                >
+                  {t("confirmFinish") || "Confirm Finish"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.actionBtn,
+                  {
+                    borderColor: colors.border,
+                    borderWidth: 1.5,
+                    borderRadius: colors.radius,
+                    marginTop: 10,
+                  },
+                ]}
+                onPress={() => setShowCustomerEditor(false)}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={22}
+                  color={colors.mutedForeground}
+                />
+                <Text
+                  style={[styles.actionBtnText, { color: colors.mutedForeground }]}
+                >
+                  {t("cancel")}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   if (showAmountEditor) {
     return (
@@ -380,7 +617,7 @@ export function StopSessionModal({
                 borderRadius: colors.radius,
               },
             ]}
-            onPress={handleFinish}
+            onPress={handleFinishPress}
           >
             <MaterialIcons
               name="check-circle"
@@ -514,5 +751,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: -1.5,
     zIndex: 1,
+  },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  photoBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePic: {
+    width: "100%",
+    height: "100%",
+  },
+  photoLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  contactPickBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  contactPickText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

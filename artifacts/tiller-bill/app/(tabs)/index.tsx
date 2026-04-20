@@ -1,6 +1,7 @@
+import notifee, { AndroidImportance, AndroidVisibility } from "@notifee/react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -55,6 +56,84 @@ export default function HomeTab() {
   const [pendingState, setPendingState] = useState<PendingState>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcPendingAmount, setCalcPendingAmount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateNotifications = async () => {
+      if (Platform.OS === "web") return;
+
+      const activeList = Object.values(activeTimers).filter(t => t.status !== "idle");
+      
+      if (activeList.length === 0) {
+        await notifee.stopForegroundService();
+        // Cancel all active timer notifications when none are active
+        const allNotifications = await notifee.getDisplayedNotifications();
+        for (const n of allNotifications) {
+          if (n.id?.startsWith("timer-")) {
+            await notifee.cancelNotification(n.id);
+          }
+        }
+        return;
+      }
+
+      await notifee.requestPermission();
+
+      const channelId = await notifee.createChannel({
+        id: "timer-channel",
+        name: "Active Timers",
+        importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.PUBLIC,
+      });
+
+      // Display individual notifications for each active timer
+      for (const t of activeList) {
+        const equip = equipment.find(e => e.id === t.equipmentId);
+        const name = equip?.name || "Equipment";
+        const isRunning = t.status === "running";
+        
+        // Calculate a base timestamp for the chronometer. 
+        const startTime = isRunning 
+          ? Date.now() - (t.accumulatedSeconds * 1000)
+          : Date.now();
+
+        await notifee.displayNotification({
+          id: `timer-${t.equipmentId}`,
+          title: name,
+          body: isRunning ? "Timer Running" : "Timer Paused",
+          android: {
+            channelId,
+            ongoing: true,
+            asForegroundService: true,
+            visibility: AndroidVisibility.PUBLIC,
+            timestamp: startTime,
+            showTimestamp: true,
+            showChronometer: isRunning,
+            chronometerDirection: 'up',
+            pressAction: {
+              id: "default",
+            },
+            actions: [
+              {
+                title: isRunning ? "⏸️ Pause" : "▶️ Resume",
+                pressAction: {
+                  id: isRunning ? `pause_timer_${t.equipmentId}` : `resume_timer_${t.equipmentId}`,
+                  launchActivity: "default",
+                },
+              },
+              {
+                title: "⏹️ Stop",
+                pressAction: {
+                  id: `stop_timer_${t.equipmentId}`,
+                  launchActivity: "default",
+                },
+              },
+            ],
+          },
+        });
+      }
+    };
+
+    updateNotifications();
+  }, [activeTimers, equipment]);
 
   const handleStart = (equip: Equipment) => {
     console.log("Starting timer for:", equip.name, "allowSimultaneousTimers:", timerSettings.allowSimultaneousTimers);
@@ -122,17 +201,28 @@ export default function HomeTab() {
     });
   };
 
-  const handleFinish = () => {
+  const handleFinish = (customerData: { name: string; phone: string; image?: string }) => {
     if (stopState) {
       const timer = stopState.timer;
       const totalSeconds = timer.accumulatedSeconds;
       const amount = parseFloat(((totalSeconds / 3600) * stopState.equipment.hourlyRate).toFixed(2));
       addHistoryEntry({
-        type: "session",
-        title: stopState.equipment.name,
+        type: "paid_debt",
+        title: customerData.name,
         amount,
         durationSeconds: totalSeconds,
         equipmentName: stopState.equipment.name,
+        contactName: customerData.name,
+        mobileNumber: customerData.phone,
+        profilePic: customerData.image,
+        lineItems: [{
+          id: Date.now().toString(),
+          amount,
+          description: stopState.equipment.name,
+          source: "Home Equipment",
+          timestamp: Date.now(),
+          durationSeconds: totalSeconds,
+        }]
       });
     }
     setStopState(null);
@@ -163,7 +253,7 @@ export default function HomeTab() {
       <FlatList
         data={equipment}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>

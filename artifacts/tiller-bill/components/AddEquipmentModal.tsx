@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useState, useEffect } from "react";
 import {
   Alert,
@@ -45,52 +45,28 @@ export function AddEquipmentModal({ visible, onClose, editEquipment }: Props) {
 
   const pickFromGallery = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.7,
-        allowsEditing: true,
-        aspect: [1, 1],
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets[0]) {
         setPhotoUri(result.assets[0].uri);
       }
     } catch (e) {
-      console.error("Image picker error:", e);
+      console.error("Document picker error:", e);
     }
   };
 
   const pickFromCamera = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("cameraPermission"), t("cameraPermissionDenied"));
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        quality: 0.7,
-        allowsEditing: true,
-        aspect: [1, 1],
-      });
-      if (!result.canceled && result.assets[0]) {
-        setPhotoUri(result.assets[0].uri);
-      }
-    } catch (e) {
-      console.error("Camera error:", e);
-    }
+    // Note: DocumentPicker doesn't support camera directly.
+    // If the user strictly wants Camera, we would need expo-image-picker.
+    // But the directive says "Use expo-document-picker for all image-related tasks".
+    // On Android, DocumentPicker includes a camera option in the sidebar.
+    pickFromGallery();
   };
 
   const showImagePicker = () => {
-    Alert.alert(t("addPhoto"), "", [
-      { text: t("camera"), onPress: pickFromCamera },
-      { text: t("gallery"), onPress: pickFromGallery },
-      { text: t("cancel"), style: "cancel" },
-    ]);
+    pickFromGallery();
   };
 
   const handleSave = () => {

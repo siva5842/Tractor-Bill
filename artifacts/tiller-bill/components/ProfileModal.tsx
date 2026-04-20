@@ -1,10 +1,12 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as GoogleSignin from "@react-native-google-signin/google-signin";
+import * as DocumentPicker from "expo-document-picker";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,7 +21,7 @@ import {
 
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { backupToDrive, restoreFromDrive } from "@/services/googleDriveSync";
+import { backupToDrive, restoreFromDrive, wipeAppDataFromDrive } from "@/services/googleDriveSync";
 import { TranslationKey } from "@/i18n/translations";
 
 const GOOGLE_WEB_CLIENT_ID =
@@ -27,6 +29,10 @@ const GOOGLE_WEB_CLIENT_ID =
 
 GoogleSignin.GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
+  scopes: [
+    "https://www.googleapis.com/auth/drive.appdata",
+    "https://www.googleapis.com/auth/drive.file",
+  ],
   offlineAccess: true,
 });
 
@@ -110,13 +116,15 @@ export function ProfileModal({ visible, onClose }: Props) {
   const handleGoogleSignIn = async () => {
     try {
       await GoogleSignin.GoogleSignin.hasPlayServices();
-      const { data } = await GoogleSignin.GoogleSignin.signIn();
+      const { data } = await GoogleSignin.GoogleSignin.signIn({
+        prompt: "select_account",
+      });
       if (data?.idToken) {
-        // Use tokens to fetch user info or perform backend auth
-        // For simplicity, we'll assume signIn context handles it
-        // If your signIn context needs an access token, use getTokens()
         const tokens = await GoogleSignin.GoogleSignin.getTokens();
         await signIn(tokens.accessToken, data.user.email ?? "", data.user.name ?? profile.name);
+        if (data.user.photo) {
+          updateProfile({ photoUri: data.user.photo });
+        }
         showToast("signedInAs");
       }
     } catch (error: any) {
@@ -160,6 +168,39 @@ export function ProfileModal({ visible, onClose }: Props) {
     ]);
   };
 
+  const handleWipeCloudData = async () => {
+    if (!profile.googleAccessToken) return;
+    
+    const doWipe = async () => {
+      setIsSyncing(true);
+      const result = await wipeAppDataFromDrive(profile.googleAccessToken!);
+      setIsSyncing(false);
+      showToast(result.message as TranslationKey);
+    };
+
+    Alert.alert(
+      t("wipeCloudData") || "Delete App Data from Google Drive",
+      "This will permanently remove your cloud backup. Local data will remain. Continue?",
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("delete") || "Delete",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              t("confirmWipe") || "Are you absolutely sure?",
+              t("confirmWipeDesc") || "This action cannot be undone.",
+              [
+                { text: t("cancel"), style: "cancel" },
+                { text: t("delete") || "Delete", style: "destructive", onPress: doWipe }
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const handleReplayGuide = async () => {
     await setHasSeenOnboarding(false);
     onClose();
@@ -168,6 +209,35 @@ export function ProfileModal({ visible, onClose }: Props) {
   const showToast = (key: TranslationKey) => {
     setToastMsg(t(key));
     setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const pickProfilePic = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        updateProfile({ photoUri: result.assets[0].uri });
+      }
+    } catch (e) {
+      console.error("Document picker error:", e);
+    }
+  };
+
+  const handleAvatarPress = () => {
+    const options = [
+      { text: t("chooseFromDevice") || "Choose from Device", onPress: pickProfilePic },
+      { text: t("cancel"), style: "cancel" as const },
+    ];
+    if (profile.isSignedIn) {
+      options.unshift({
+        text: t("syncFromGoogle") || "Sync from Google",
+        onPress: handleGoogleSignIn,
+      });
+    }
+    Alert.alert(t("profilePhoto") || "Profile Photo", "", options);
   };
 
   return (
@@ -206,6 +276,38 @@ export function ProfileModal({ visible, onClose }: Props) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <View style={styles.profileHeader}>
+              <Pressable onPress={handleAvatarPress} style={styles.avatarWrapper}>
+                {profile.photoUri ? (
+                  <Image
+                    source={{ uri: profile.photoUri }}
+                    style={[styles.googleAvatarLarge, { borderRadius: 50 }]}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.googleAvatarLarge,
+                      { backgroundColor: colors.primary, borderRadius: 50 },
+                    ]}
+                  >
+                    <Text style={styles.googleAvatarTextLarge}>
+                      {(profile.displayName ??
+                        profile.email ??
+                        "G")[0].toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.editIconBadge,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                >
+                  <MaterialIcons name="edit" size={14} color={colors.primary} />
+                </View>
+              </Pressable>
+            </View>
+
             <Text
               style={[styles.sectionLabel, { color: colors.mutedForeground }]}
             >
@@ -388,6 +490,28 @@ export function ProfileModal({ visible, onClose }: Props) {
                   )}
                   <Text style={[styles.syncBtnText, { color: colors.accent }]}>
                     {isRestoring ? t("restoring") : t("restoreFromCloud")}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.syncBtn,
+                    {
+                      borderRadius: colors.radius,
+                      backgroundColor: colors.destructive + "14",
+                      borderColor: colors.destructive + "55",
+                      marginTop: 10,
+                    },
+                  ]}
+                  onPress={handleWipeCloudData}
+                  disabled={isSyncing}
+                >
+                  <MaterialIcons
+                    name="delete-forever"
+                    size={22}
+                    color={colors.destructive}
+                  />
+                  <Text style={[styles.syncBtnText, { color: colors.destructive }]}>
+                    {t("wipeCloudData") || "Delete App Data from Google Drive"}
                   </Text>
                 </Pressable>
               </>
@@ -631,4 +755,38 @@ const styles = StyleSheet.create({
   },
   saveBtn: { paddingVertical: 16, alignItems: "center" },
   saveBtnText: { fontSize: 17, fontWeight: "700" },
+  profileHeader: {
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  avatarWrapper: {
+    position: "relative",
+  },
+  googleAvatarLarge: {
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleAvatarTextLarge: {
+    color: "#fff",
+    fontSize: 40,
+    fontWeight: "700",
+  },
+  editIconBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
 });

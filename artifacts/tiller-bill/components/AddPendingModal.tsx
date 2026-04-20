@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -90,19 +90,20 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
 
   const uniqueContacts = useMemo(() => {
     const seen = new Map<string, { name: string; phone: string }>();
-    pendingDebts.forEach((d) => {
-      const key = d.mobileNumber.replace(/\D/g, "");
-      if (!seen.has(key) && d.contactName && d.mobileNumber) {
-        seen.set(key, { name: d.contactName, phone: d.mobileNumber });
+    (pendingDebts || []).forEach((d) => {
+      if (!d) return;
+      const key = (d.mobileNumber || "").replace(/\D/g, "");
+      if (key && !seen.has(key) && d.contactName) {
+        seen.set(key, { name: d.contactName, phone: d.mobileNumber || "" });
       }
     });
     return Array.from(seen.values());
   }, [pendingDebts]);
 
   const filteredSuggestions = useMemo(() => {
-    if (!contactName.trim()) return [];
+    if (!contactName?.trim()) return [];
     const lower = contactName.trim().toLowerCase();
-    return uniqueContacts.filter((c) => c.name.toLowerCase().includes(lower));
+    return uniqueContacts.filter((c) => (c?.name || "").toLowerCase().includes(lower));
   }, [contactName, uniqueContacts]);
 
   useEffect(() => {
@@ -121,21 +122,17 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
   }, [visible, initialAmount]);
 
   const pickProfilePic = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("galleryPermission"), t("galleryPermissionDenied"));
-      return;
-    }
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled) {
-      setProfilePic(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Document picker error:", e);
     }
   };
 
@@ -161,9 +158,8 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
             contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
           );
         }
-        if (contact.imageAvailable && contact.image?.uri) {
-          setProfilePic(contact.image.uri);
-        }
+        const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? String(contact.image.uri) : undefined;
+        setProfilePic(photoUri);
         setShowSuggestions(false);
       }
     } catch (err) {
@@ -172,14 +168,7 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
   };
 
   const handleDateParsing = (text: string) => {
-    let raw = text.replace(/[^0-9]/g, "");
-    if (raw.length === 8) {
-      const formatted =
-        raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
-      setReminderDateStr(formatted);
-    } else {
-      setReminderDateStr(text);
-    }
+    setReminderDateStr(text);
   };
 
   const handleSave = async () => {
@@ -263,6 +252,10 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
       notificationId,
     });
 
+    if (Platform.OS !== "web") {
+      Alert.alert(t("success") || "Success", "Added to Pending List");
+    }
+
     onClose();
   };
 
@@ -305,12 +298,12 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
                 style={[
                   styles.photoBtn,
                   {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
+                    backgroundColor: colors.background || "#fff",
+                    borderColor: colors.border || "#ccc",
                   },
                 ]}
               >
-                {profilePic ? (
+                {typeof profilePic === "string" && profilePic !== "" ? (
                   <Image
                     source={{ uri: profilePic }}
                     style={styles.profilePic}
@@ -613,13 +606,7 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
                   <TextInput
                     style={[
                       styles.input,
-                      { flex: 1 },
-                      {
-                        borderColor: colors.border,
-                        color: colors.foreground,
-                        backgroundColor: colors.background,
-                        borderRadius: colors.radius,
-                      },
+                      { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1.5, height: 52, borderRadius: colors.radius, paddingHorizontal: 14 },
                     ]}
                     value={reminderDateStr}
                     onChangeText={handleDateParsing}
