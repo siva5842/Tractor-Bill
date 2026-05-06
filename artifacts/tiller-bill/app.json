@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tractor Bill",
     "slug": "tiller-bill",
-    "version": "5.0.1",
+    "version": "5.0.2-dev",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": [
