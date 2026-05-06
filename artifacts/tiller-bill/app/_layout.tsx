@@ -1,4 +1,5 @@
 import notifee, { EventType } from "@notifee/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 notifee.registerForegroundService((notification) => {
   return new Promise(() => {
@@ -9,10 +10,37 @@ notifee.registerForegroundService((notification) => {
 notifee.onBackgroundEvent(async ({ type, detail }) => {
   if (type === EventType.ACTION_PRESS) {
     if (detail.pressAction?.id === "pause_timer" || detail.pressAction?.id === "resume_timer" || detail.pressAction?.id === "stop_timer") {
-      // In background, we can't easily access the DataContext hooks.
-      // However, Notifee background events can be used to wake up the app or perform silent updates if state is persisted.
-      // For this implementation, we rely on the app launching to foreground for 'stop_timer'.
-      // For 'pause_timer', it will be handled when the app is active.
+      // Background logic
+    }
+  } else if (type === EventType.DISMISSED) {
+    const notification = detail.notification;
+    if (notification?.id?.startsWith("timer-")) {
+      const equipmentId = notification.id.replace("timer-", "");
+      
+      // Task 3: Restore Running Timer Anti-Swipe (Respawn)
+      try {
+        const atStr = await AsyncStorage.getItem("@tiller_timers");
+        if (atStr) {
+          const timers = JSON.parse(atStr);
+          const timer = timers[equipmentId];
+          
+          if (timer && timer.status === "running") {
+            if (notification.android) {
+              await notifee.displayNotification({
+                ...notification,
+                android: {
+                  ...notification.android,
+                  ongoing: true, // Re-enforce
+                  groupId: `group-${equipmentId}`, // Keep unique group
+                  groupSummary: false,
+                }
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Background dismiss error:", err);
+      }
     }
   }
 });

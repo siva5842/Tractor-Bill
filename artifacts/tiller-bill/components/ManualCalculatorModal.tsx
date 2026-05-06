@@ -1,7 +1,10 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Contacts from "expo-contacts";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -419,20 +422,155 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
         initialAmount={result?.toFixed(2)}
       />
 
-      <StopSessionModal
+      <SaveCalculatedHistoryModal
         visible={showStopSession}
-        timer={null}
-        equipment={{
-          id: "manual",
-          name: t("manualCalc"),
-          hourlyRate: parseFloat(rate) || 0,
-          createdAt: Date.now(),
-        }}
-        onGenerateQR={() => {}}
-        onSaveToPending={() => {}}
+        amount={result || 0}
         onFinish={handleConfirmFinish}
         onClose={() => setShowStopSession(false)}
       />
+    </Modal>
+  );
+}
+
+interface SaveHistoryProps {
+  visible: boolean;
+  amount: number;
+  onFinish: (data: { name: string; phone: string; image?: string }) => void;
+  onClose: () => void;
+}
+
+function SaveCalculatedHistoryModal({ visible, amount, onFinish, onClose }: SaveHistoryProps) {
+  const { t } = useApp();
+  const colors = useColors();
+  const [contactName, setContactName] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
+
+  const pickProfilePic = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Document picker error:", e);
+    }
+  };
+
+  const pickContact = async () => {
+    if (Platform.OS === "web") return;
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status === "granted") {
+        const contact = await Contacts.presentContactPickerAsync({
+          fields: [
+            Contacts.Fields.Name,
+            Contacts.Fields.PhoneNumbers,
+            Contacts.Fields.Image,
+          ],
+        });
+        if (contact) {
+          setContactName(contact.name || "");
+          if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+            setMobileNumber(contact.phoneNumbers[0].number?.replace(/\s/g, "") || "");
+          }
+          if (contact.imageAvailable && contact.image && contact.image.uri) {
+            setProfilePic(contact.image.uri);
+          }
+        }
+      } else {
+        Alert.alert(t("contactsPermission") || "Permission Denied", "Please allow access to contacts.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleFinish = () => {
+    if (!contactName.trim()) {
+      Alert.alert(t("missingField"), t("enterContactName"));
+      return;
+    }
+    onFinish({ name: contactName.trim(), phone: mobileNumber.trim(), image: profilePic });
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24, alignItems: "center" }]}>
+          <Text style={[styles.title, { color: colors.foreground, marginBottom: 10 }]}>{t("customerDetails")}</Text>
+          <Text style={[styles.resultValue, { color: colors.primary, fontSize: 24, marginBottom: 10 }]}>₹{amount.toFixed(2)}</Text>
+          
+          <View style={styles.photoSection}>
+            <Pressable
+              onPress={pickProfilePic}
+              style={[
+                styles.photoBtn,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              {profilePic ? (
+                <Image
+                  source={{ uri: profilePic }}
+                  style={styles.profilePic}
+                />
+              ) : (
+                <MaterialIcons
+                  name="add-a-photo"
+                  size={32}
+                  color={colors.primary}
+                />
+              )}
+            </Pressable>
+            <Text
+              style={[styles.photoLabel, { color: colors.mutedForeground }]}
+            >
+              {profilePic ? t("changePhoto") : t("addPhoto")}
+            </Text>
+          </View>
+
+          <Pressable
+            style={[styles.contactPickBtn, { backgroundColor: colors.secondary, borderRadius: colors.radius, width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, marginBottom: 15 }]}
+            onPress={pickContact}
+          >
+            <MaterialIcons name="contacts" size={20} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontWeight: "700" }}>{t("pickFromContacts")}</Text>
+          </Pressable>
+
+          <TextInput
+            style={[styles.input, { width: "100%", borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+            value={contactName}
+            onChangeText={setContactName}
+            placeholder={t("contactName")}
+            placeholderTextColor={colors.mutedForeground}
+          />
+          <TextInput
+            style={[styles.input, { width: "100%", borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+            value={mobileNumber}
+            onChangeText={setMobileNumber}
+            placeholder={t("mobileNumber")}
+            placeholderTextColor={colors.mutedForeground}
+            keyboardType="phone-pad"
+          />
+
+          <Pressable
+            style={[styles.calcBtn, { width: "100%", backgroundColor: colors.primary, borderRadius: colors.radius }]}
+            onPress={handleFinish}
+          >
+            <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={{ marginTop: 10 }}>
+            <Text style={{ color: colors.mutedForeground }}>{t("cancel")}</Text>
+          </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -536,6 +674,29 @@ const styles = StyleSheet.create({
   saveHistoryText: {
     fontSize: 13,
     fontWeight: "700",
+  },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  photoBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePic: {
+    width: "100%",
+    height: "100%",
+  },
+  photoLabel: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   resetText: {
     fontSize: 14,

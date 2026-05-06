@@ -148,30 +148,33 @@ export function SaveToPendingModal({
   };
 
   const pickContact = async () => {
+    if (Platform.OS === "web") return;
     try {
       const { status } = await Contacts.requestPermissionsAsync();
-      if (status === "granted") {
-        const contact = await Contacts.presentContactPickerAsync({
-          fields: [
-            Contacts.Fields.Name,
-            Contacts.Fields.PhoneNumbers,
-            Contacts.Fields.Image,
-          ],
-        });
+      if (status !== "granted") {
+        Alert.alert(t("contactsPermission") || "Permission Denied", "Please allow access to contacts.");
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Image,
+        ],
+      });
 
-        if (contact) {
-          setContactName(contact.name || "");
-          if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-            setMobileNumber(
-              contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
-            );
-          }
-          const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? contact.image.uri : undefined;
-          if (photoUri) {
-            setProfilePic(photoUri);
-          }
-          setShowSuggestions(false);
+      if (contact) {
+        setContactName(contact.name || "");
+        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+          setMobileNumber(
+            contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
+          );
         }
+        const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? String(contact.image.uri) : undefined;
+        if (photoUri) {
+          setProfilePic(photoUri);
+        }
+        setShowSuggestions(false);
       }
     } catch (err) {
       console.error(err);
@@ -712,10 +715,8 @@ export function SaveToPendingModal({
               onChange={(event: any, selectedDate: any) => {
                 setShowDatePicker(false);
                 if (selectedDate) {
-                  const day = String(selectedDate.getDate()).padStart(2, "0");
-                  const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-                  const year = selectedDate.getFullYear();
-                  setReminderDateStr(`${day}/${month}/${year}`);
+                  const formattedDate = `${String(selectedDate.getDate()).padStart(2, "0")}/${String(selectedDate.getMonth() + 1).padStart(2, "0")}/${selectedDate.getFullYear()}`;
+                  setReminderDateStr(formattedDate);
                 }
               }}
             />
@@ -747,7 +748,8 @@ export function SaveToPendingModal({
                   const val = e.target.value;
                   if (val) {
                     const [y, m, d] = val.split("-");
-                    setReminderDateStr(`${parseInt(d)}/${parseInt(m)}/${y}`);
+                    const formattedDate = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+                    setReminderDateStr(formattedDate);
                     setShowDatePicker(false);
                   }
                 }}

@@ -141,7 +141,7 @@ export function AddPendingModal({ visible, onClose, initialAmount }: Props) {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(t("contactsPermission"));
+        Alert.alert(t("contactsPermission") || "Permission Denied", "Please allow access to contacts.");
         return;
       }
       const contact = await Contacts.presentContactPickerAsync({

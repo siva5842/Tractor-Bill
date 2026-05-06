@@ -24,6 +24,9 @@ interface Props {
   onStop: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  isEditingOrder?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 export function EquipmentCard({
@@ -35,6 +38,9 @@ export function EquipmentCard({
   onStop,
   onEdit,
   onDelete,
+  isEditingOrder,
+  onMoveUp,
+  onMoveDown,
 }: Props) {
   const { t } = useApp();
   const colors = useColors();
@@ -94,6 +100,16 @@ export function EquipmentCard({
         ]}
       >
         <View style={styles.top}>
+          {isEditingOrder && (
+            <View style={styles.orderControls}>
+              <Pressable onPress={onMoveUp} style={styles.orderBtn} hitSlop={8}>
+                <MaterialIcons name="keyboard-arrow-up" size={28} color={colors.primary} />
+              </Pressable>
+              <Pressable onPress={onMoveDown} style={styles.orderBtn} hitSlop={8}>
+                <MaterialIcons name="keyboard-arrow-down" size={28} color={colors.primary} />
+              </Pressable>
+            </View>
+          )}
           {equipment.photoUri ? (
             <Image source={{ uri: equipment.photoUri }} style={[styles.photo, { borderRadius: colors.radius - 4 }]} />
           ) : (
@@ -259,6 +275,14 @@ const styles = StyleSheet.create({
   },
   actionIcon: {
     padding: 6,
+  },
+  orderControls: {
+    flexDirection: "column",
+    gap: 4,
+    marginRight: 4,
+  },
+  orderBtn: {
+    padding: 2,
   },
   earningsRow: {
     flexDirection: "row",

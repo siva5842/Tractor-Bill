@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import notifee, { AndroidImportance, AndroidVisibility } from "@notifee/react-native";
 import React, {
   createContext,
   useCallback,
@@ -7,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Platform } from "react-native";
 
 export interface Equipment {
   id: string;
@@ -68,6 +70,7 @@ interface DataContextType {
   addEquipment: (eq: Omit<Equipment, "id" | "createdAt">) => void;
   updateEquipment: (id: string, updates: Partial<Omit<Equipment, "id" | "createdAt">>) => void;
   deleteEquipment: (id: string) => void;
+  reorderEquipment: (startIndex: number, endIndex: number) => void;
 
   activeTimers: Record<string, ActiveTimer>;
   startTimer: (equipmentId: string) => void;
@@ -189,6 +192,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
     },
     [saveEquipment, saveTimers]
+  );
+
+  const reorderEquipment = useCallback(
+    (startIndex: number, endIndex: number) => {
+      setEquipment((prev) => {
+        const next = [...prev];
+        const [removed] = next.splice(startIndex, 1);
+        next.splice(endIndex, 0, removed);
+        saveEquipment(next);
+        return next;
+      });
+    },
+    [saveEquipment]
   );
 
   const startTimer = useCallback(
@@ -336,7 +352,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updatePendingDebt = useCallback(
     (id: string, updates: Partial<Omit<PendingDebt, "id" | "createdAt">>) => {
       setPendingDebts((prev) => {
+        const debt = prev.find((d) => d.id === id);
+        if (!debt) return prev;
+
         const next = prev.map((d) => (d.id === id ? { ...d, ...updates } : d));
+        const updatedDebt = next.find(d => d.id === id);
+
+        if (!updatedDebt) return next;
+
+        // Task 1: Fix Stale Pending Reminders (Dynamic Update)
+        if (Platform.OS !== "web") {
+          // Always cancel the old one by ID
+          notifee.cancelTriggerNotification(id).catch(() => {});
+
+          if (updatedDebt.totalAmount <= 0) {
+            notifee.cancelNotification(id).catch(() => {});
+          } else if (updatedDebt.reminderDate) {
+            // Recreate with updated amount if it exists and amount > 0
+            notifee.createTriggerNotification(
+              {
+                id: id,
+                title: "Payment Reminder",
+                body: `Reminder: Payment of ₹${updatedDebt.totalAmount} is due from ${updatedDebt.contactName}`,
+                data: { debtId: id },
+                android: {
+                  channelId: "reminders",
+                  importance: AndroidImportance.HIGH,
+                  priority: "high",
+                  visibility: AndroidVisibility.PUBLIC,
+                  pressAction: { id: "default" },
+                },
+              },
+              {
+                type: 0,
+                timestamp: updatedDebt.reminderDate!,
+              }
+            ).catch(() => {});
+          }
+        }
+
         savePending(next);
         return next;
       });
@@ -351,6 +405,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         savePending(next);
         return next;
       });
+      // Cancel associated trigger notifications
+      if (Platform.OS !== "web") {
+        notifee.cancelNotification(id).catch(() => {});
+        notifee.cancelTriggerNotification(id).catch(() => {});
+      }
     },
     [savePending]
   );
@@ -413,6 +472,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         savePending(next);
         return next;
       });
+      // Cancel associated trigger notifications
+      if (Platform.OS !== "web") {
+        notifee.cancelNotification(id).catch(() => {});
+        notifee.cancelTriggerNotification(id).catch(() => {});
+      }
     },
     [savePending, saveHistory]
   );
@@ -426,6 +490,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (newLineItems.length === 0) {
           const next = prev.filter((d) => d.id !== debtId);
           savePending(next);
+          // Cancel trigger if entire debt is removed
+          if (Platform.OS !== "web") {
+            notifee.cancelNotification(debtId).catch(() => {});
+            notifee.cancelTriggerNotification(debtId).catch(() => {});
+          }
           return next;
         }
         const updatedDebt: PendingDebt = {
@@ -475,6 +544,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (newLineItems.length === 0) {
           const next = prev.filter((d) => d.id !== debtId);
           savePending(next);
+          // Cancel trigger if entire debt is removed
+          if (Platform.OS !== "web") {
+            notifee.cancelNotification(debtId).catch(() => {});
+            notifee.cancelTriggerNotification(debtId).catch(() => {});
+          }
           return next;
         }
         const updatedDebt: PendingDebt = {
@@ -498,11 +572,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const newLineItems = debt.lineItems.map((li) =>
           li.id === itemId ? { ...li, ...updates } : li
         );
+        const newTotal = newLineItems.reduce((sum, li) => sum + li.amount, 0);
         const updatedDebt: PendingDebt = {
           ...debt,
           lineItems: newLineItems,
-          totalAmount: newLineItems.reduce((sum, li) => sum + li.amount, 0),
+          totalAmount: newTotal,
         };
+
+        // Task 1: Sync notification if amount changed
+        if (Platform.OS !== "web") {
+          // Always cancel old trigger
+          notifee.cancelTriggerNotification(debtId).catch(() => {});
+
+          if (newTotal <= 0) {
+            notifee.cancelNotification(debtId).catch(() => {});
+          } else if (debt.reminderDate) {
+            // Re-create with new total
+            notifee.createTriggerNotification(
+              {
+                id: debtId,
+                title: "Payment Reminder",
+                body: `Reminder: Payment of ₹${newTotal} is due from ${debt.contactName}`,
+                data: { debtId: debtId },
+                android: {
+                  channelId: "reminders",
+                  importance: AndroidImportance.HIGH,
+                  priority: "high",
+                  visibility: AndroidVisibility.PUBLIC,
+                  pressAction: { id: "default" },
+                },
+              },
+              {
+                type: 0,
+                timestamp: debt.reminderDate!,
+              }
+            ).catch(() => {});
+          }
+        }
+
         const next = prev.map((d) => (d.id === debtId ? updatedDebt : d));
         savePending(next);
         return next;
@@ -529,6 +636,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addEquipment,
         updateEquipment,
         deleteEquipment,
+        reorderEquipment,
         activeTimers,
         startTimer,
         pauseTimer,

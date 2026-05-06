@@ -93,28 +93,31 @@ export function StopSessionModal({
   };
 
   const pickContact = async () => {
+    if (Platform.OS === "web") return;
     try {
       const { status } = await Contacts.requestPermissionsAsync();
-      if (status === "granted") {
-        const contact = await Contacts.presentContactPickerAsync({
-          fields: [
-            Contacts.Fields.Name,
-            Contacts.Fields.PhoneNumbers,
-            Contacts.Fields.Image,
-          ],
-        });
+      if (status !== "granted") {
+        Alert.alert(t("contactsPermission") || "Permission Denied", "Please allow access to contacts.");
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Image,
+        ],
+      });
 
-        if (contact) {
-          setContactName(contact.name || "");
-          if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-            setMobileNumber(
-              contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
-            );
-          }
-          const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? contact.image.uri : undefined;
-          if (photoUri) {
-            setProfilePic(photoUri);
-          }
+      if (contact) {
+        setContactName(contact.name || "");
+        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+          setMobileNumber(
+            contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
+          );
+        }
+        const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? contact.image.uri : undefined;
+        if (photoUri) {
+          setProfilePic(photoUri);
         }
       }
     } catch (err) {

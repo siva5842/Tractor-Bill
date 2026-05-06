@@ -1196,7 +1196,7 @@ function EditCustomerModal({
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(t("contactsPermission"));
+        Alert.alert(t("contactsPermission") || "Permission Denied", "Please allow access to contacts.");
         return;
       }
       const contact = await Contacts.presentContactPickerAsync({
@@ -1213,7 +1213,7 @@ function EditCustomerModal({
             contact.phoneNumbers[0].number?.replace(/\s/g, "") || "",
           );
         }
-        const photoUri = contact.image?.uri ? String(contact.image.uri) : undefined;
+        const photoUri = (contact.imageAvailable && contact.image && contact.image.uri) ? String(contact.image.uri) : undefined;
         setProfilePic(photoUri);
       }
     } catch (err) {

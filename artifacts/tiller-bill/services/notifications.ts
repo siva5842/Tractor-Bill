@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import notifee, { AndroidImportance, AndroidVisibility } from "@notifee/react-native";
 import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
@@ -36,20 +37,34 @@ export async function scheduleDebtReminder(params: {
     if (!granted) return null;
     if (params.date <= new Date()) return null;
 
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
+    // Use Notifee for consistency and better Android support
+    const channelId = await notifee.createChannel({
+      id: "reminders",
+      name: "Reminders",
+      importance: AndroidImportance.HIGH,
+      visibility: AndroidVisibility.PUBLIC,
+    });
+
+    const id = await notifee.createTriggerNotification(
+      {
         title: params.title,
         body: params.body,
         data: { debtId: params.debtId },
-        sound: true,
+        android: {
+          channelId,
+          pressAction: {
+            id: "default",
+          },
+        },
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: params.date,
-      },
-    });
+      {
+        type: 0, // Timestamp trigger
+        timestamp: params.date.getTime(),
+      }
+    );
     return id;
-  } catch {
+  } catch (err) {
+    console.error("Schedule error:", err);
     return null;
   }
 }
@@ -57,6 +72,6 @@ export async function scheduleDebtReminder(params: {
 export async function cancelNotification(notificationId: string): Promise<void> {
   if (Platform.OS === "web") return;
   try {
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await notifee.cancelNotification(notificationId);
   } catch {}
 }

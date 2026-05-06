@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, AndroidVisibility } from "@notifee/react-native";
+import notifee, { AndroidImportance, AndroidVisibility, AndroidCategory, AndroidStyle, EventType } from "@notifee/react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
@@ -44,10 +44,11 @@ type PendingState = {
 export default function HomeTab() {
   const { t, profile, confirmationSettings, timerSettings } = useApp();
   const colors = useColors();
-  const { equipment, deleteEquipment, activeTimers, startTimer, pauseTimer, resumeTimer, stopTimer, addHistoryEntry } =
+  const { equipment, deleteEquipment, activeTimers, startTimer, pauseTimer, resumeTimer, stopTimer, addHistoryEntry, reorderEquipment } =
     useData();
 
   const [showAddEquip, setShowAddEquip] = useState(false);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [editTarget, setEditTarget] = useState<Equipment | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Equipment | null>(null);
@@ -77,52 +78,75 @@ export default function HomeTab() {
 
       await notifee.requestPermission();
 
-      const channelId = await notifee.createChannel({
-        id: "timer-channel",
-        name: "Active Timers",
+      const timerChannelId = await notifee.createChannel({
+        id: "timers",
+        name: "Live Timers",
         importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.PUBLIC,
+      });
+
+      await notifee.createChannel({
+        id: "reminders",
+        name: "Reminders",
+        importance: AndroidImportance.DEFAULT,
         visibility: AndroidVisibility.PUBLIC,
       });
 
       // Display individual notifications for each active timer
       for (const t of activeList) {
+        const notificationId = `timer-${t.equipmentId}`;
+        
+        // Task 1: Strictly filter notifications: ONLY show 'running' timers.
+        if (t.status !== 'running') {
+          await notifee.cancelNotification(notificationId);
+          continue;
+        }
+
         const equip = equipment.find(e => e.id === t.equipmentId);
         const name = equip?.name || "Equipment";
-        const isRunning = t.status === "running";
         
-        // Calculate a base timestamp for the chronometer. 
-        const startTime = isRunning 
-          ? Date.now() - (t.accumulatedSeconds * 1000)
-          : Date.now();
+        // Use the actual startTime from the timer state to sync the chronometer
+        const startTime = t.startTime;
 
         await notifee.displayNotification({
-          id: `timer-${t.equipmentId}`,
+          id: notificationId,
           title: name,
-          body: isRunning ? "Timer Running" : "Timer Paused",
+          body: "Timer Running",
           android: {
-            channelId,
+            channelId: timerChannelId,
+            importance: AndroidImportance.HIGH,
+            priority: 'high',
+            category: AndroidCategory.ALARM,
             ongoing: true,
+            autoCancel: false,
             asForegroundService: true,
             visibility: AndroidVisibility.PUBLIC,
+            groupId: `group-${t.equipmentId}`, // Task 2: Unique groupId
+            groupSummary: false, // Ensure individual cards
+            fullScreenAction: {
+              id: 'default',
+              launchActivity: 'default',
+            },
             timestamp: startTime,
             showTimestamp: true,
-            showChronometer: isRunning,
+            showChronometer: true,
             chronometerDirection: 'up',
+            compactActions: [0, 1],
             pressAction: {
               id: "default",
             },
             actions: [
               {
-                title: isRunning ? "⏸️ Pause" : "▶️ Resume",
+                title: "⏸️",
                 pressAction: {
-                  id: isRunning ? `pause_timer_${t.equipmentId}` : `resume_timer_${t.equipmentId}`,
+                  id: `pause_timer_${t.equipmentId}`,
                   launchActivity: "default",
                 },
               },
               {
-                title: "⏹️ Stop",
+                title: "⏹️",
                 pressAction: {
-                  id: `stop_timer_${t.equipmentId}`,
+                  id: `stop_timer_ui_${t.equipmentId}`,
                   launchActivity: "default",
                 },
               },
@@ -133,6 +157,104 @@ export default function HomeTab() {
     };
 
     updateNotifications();
+    
+    // Task 1: REMOVE any notifee.displayNotification calls from inside the interval loop.
+    // The native chronometer handles ticking. We only need to sync state changes.
+    // Removed interval loop that was calling updateNotifications every 2 seconds.
+
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.ACTION_PRESS) {
+        const actionId = detail.pressAction?.id || "";
+
+        if (actionId.startsWith("pause_timer_")) {
+          const equipmentId = actionId.replace("pause_timer_", "");
+          pauseTimer(equipmentId);
+        } else if (actionId.startsWith("resume_timer_")) {
+          const equipmentId = actionId.replace("resume_timer_", "");
+          resumeTimer(equipmentId);
+        } else if (actionId.startsWith("stop_timer_ui_")) {
+          // Task 2: Route the notification 'Stop' action to launch the app and trigger the StopSessionModal.
+          const equipmentId = actionId.replace("stop_timer_ui_", "");
+          const equip = equipment.find((e) => e.id === equipmentId);
+          if (equip) {
+            if (confirmationSettings.confirmExitTimer) {
+              // Trigger app launch and show modal
+              const timer = stopTimer(equipmentId);
+              if (timer) {
+                setStopState({ timer, equipment: equip });
+              }
+            } else {
+              const timer = stopTimer(equipmentId);
+              if (timer) {
+                setStopState({ timer, equipment: equip });
+              }
+            }
+          }
+        } else if (actionId.startsWith("stop_timer_")) {
+          const equipmentId = actionId.replace("stop_timer_", "");
+          const equip = equipment.find((e) => e.id === equipmentId);
+          if (equip) {
+            if (confirmationSettings.confirmExitTimer) {
+              Alert.alert(t("confirmExitTimer"), t("confirmExitTimerDesc"), [
+                { text: t("cancel"), style: "cancel" },
+                {
+                  text: t("stop"),
+                  style: "destructive",
+                  onPress: () => {
+                    const timer = stopTimer(equipmentId);
+                    if (timer) {
+                      setStopState({ timer, equipment: equip });
+                    }
+                  },
+                },
+              ]);
+            } else {
+              const timer = stopTimer(equipmentId);
+              if (timer) {
+                setStopState({ timer, equipment: equip });
+              }
+            }
+          }
+        } else if (actionId === "pause_timer") {
+          const running = Object.values(activeTimers).find((t) => t.status === "running");
+          if (running) pauseTimer(running.equipmentId);
+        } else if (actionId === "resume_timer") {
+          const paused = Object.values(activeTimers).find((t) => t.status === "paused");
+          if (paused) resumeTimer(paused.equipmentId);
+        } else if (actionId === "stop_timer") {
+          const running = Object.values(activeTimers).find((t) => t.status === "running");
+          if (running) {
+            const equip = equipment.find((e) => e.id === running.equipmentId);
+            if (equip) {
+              if (confirmationSettings.confirmExitTimer) {
+                Alert.alert(t("confirmExitTimer"), t("confirmExitTimerDesc"), [
+                  { text: t("cancel"), style: "cancel" },
+                  {
+                    text: t("stop"),
+                    style: "destructive",
+                    onPress: () => {
+                      const timer = stopTimer(running.equipmentId);
+                      if (timer) {
+                        setStopState({ timer, equipment: equip });
+                      }
+                    },
+                  },
+                ]);
+              } else {
+                const timer = stopTimer(running.equipmentId);
+                if (timer) {
+                  setStopState({ timer, equipment: equip });
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [activeTimers, equipment]);
 
   const handleStart = (equip: Equipment) => {
@@ -250,6 +372,39 @@ export default function HomeTab() {
         onCalculatorPress={() => setShowCalculator(true)}
       />
 
+      <View style={styles.listHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          {t("equipment") || "Equipment"}
+        </Text>
+        <Pressable
+          style={[
+            styles.reorderBtn,
+            {
+              backgroundColor: isEditingOrder ? colors.primary : colors.secondary,
+              borderRadius: 8,
+            },
+          ]}
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setIsEditingOrder(!isEditingOrder);
+          }}
+        >
+          <MaterialIcons
+            name={isEditingOrder ? "check" : "reorder"}
+            size={18}
+            color={isEditingOrder ? colors.primaryForeground : colors.primary}
+          />
+          <Text
+            style={[
+              styles.reorderText,
+              { color: isEditingOrder ? colors.primaryForeground : colors.primary },
+            ]}
+          >
+            {isEditingOrder ? t("done") : t("reorder")}
+          </Text>
+        </Pressable>
+      </View>
+
       <FlatList
         data={equipment}
         keyExtractor={(item) => item.id}
@@ -266,7 +421,7 @@ export default function HomeTab() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <EquipmentCard
             equipment={item}
             timer={activeTimers[item.id]}
@@ -276,6 +431,9 @@ export default function HomeTab() {
             onStop={() => handleStop(item)}
             onEdit={() => setEditTarget(item)}
             onDelete={() => handleDeleteRequest(item)}
+            isEditingOrder={isEditingOrder}
+            onMoveUp={() => index > 0 && reorderEquipment(index, index - 1)}
+            onMoveDown={() => index < equipment.length - 1 && reorderEquipment(index, index + 1)}
           />
         )}
       />
@@ -362,6 +520,29 @@ export default function HomeTab() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  listHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  reorderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  reorderText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
   list: {
     paddingVertical: 10,
     paddingBottom: 120,
