@@ -1,11 +1,12 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
-import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -77,19 +78,47 @@ export function StopSessionModal({
     }
   }, [visible, calculatedAmount]);
 
-  const pickProfilePic = async () => {
+  const pickFromGallery = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "image/*",
-        copyToCacheDirectory: true,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
       });
-
       if (!result.canceled && result.assets[0]) {
         setProfilePic(result.assets[0].uri);
       }
     } catch (e) {
-      console.error("Document picker error:", e);
+      console.error("Image picker error:", e);
     }
+  };
+
+  const pickFromCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("cameraPermission") || "Camera Permission", t("allowCamera") || "Please allow camera access to take photos.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Camera error:", e);
+    }
+  };
+
+  const pickProfilePic = () => {
+    Alert.alert(t("choosePhoto") || "Choose Photo", t("selectSource") || "Select source", [
+      { text: t("camera") || "Camera", onPress: pickFromCamera },
+      { text: t("gallery") || "Gallery", onPress: pickFromGallery },
+      { text: t("cancel") || "Cancel", style: "cancel" },
+    ]);
   };
 
   const pickContact = async () => {
@@ -126,6 +155,12 @@ export function StopSessionModal({
   };
 
   const handleQRPress = () => {
+    const { profile } = useApp();
+    const upiId = profile.upiId;
+    if (!upiId || upiId.trim() === '') {
+      Alert.alert(t("upiMissing") || "UPI ID Missing", t("upiMissingDesc") || "Please enter your UPI ID in Settings first.");
+      return;
+    }
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
@@ -190,13 +225,21 @@ export function StopSessionModal({
         visible={visible}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowCustomerEditor(false)}
+        onRequestClose={() => {}}
       >
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.overlay}
+        >
           <View
             style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24 }]}
           >
-            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ width: '100%' }}
+              contentContainerStyle={{ alignItems: 'center' }}
+            >
               <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
                 <MaterialIcons name="person-add" size={40} color={colors.primary} />
               </View>
@@ -345,7 +388,7 @@ export function StopSessionModal({
               </Pressable>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     );
   }
@@ -356,9 +399,12 @@ export function StopSessionModal({
         visible={visible}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowAmountEditor(false)}
+        onRequestClose={() => {}}
       >
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.overlay}
+        >
           <View
             style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24 }]}
           >
@@ -436,7 +482,7 @@ export function StopSessionModal({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     );
   }
@@ -446,9 +492,12 @@ export function StopSessionModal({
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {}}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
         <View
           style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24 }]}
         >
@@ -632,7 +681,7 @@ export function StopSessionModal({
             </Text>
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

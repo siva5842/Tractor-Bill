@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import {
+  Alert,
   Linking,
   Modal,
   Platform,
@@ -48,6 +49,13 @@ export function QRCodeModal({
     userName || "Tiller Bill",
     amount,
   );
+
+  React.useEffect(() => {
+    if (visible && (!upiId || upiId.trim() === '')) {
+      Alert.alert(t("upiMissing") || "UPI ID Missing", t("upiMissingDesc") || "Please enter your UPI ID in Settings first.");
+      setTimeout(() => onClose(), 100);
+    }
+  }, [visible, upiId, onClose, t]);
 
   const handleOpenUPI = () => {
     Linking.openURL(upiString).catch(() => {});

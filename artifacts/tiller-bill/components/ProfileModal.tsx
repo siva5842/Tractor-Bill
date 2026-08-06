@@ -612,6 +612,7 @@ export function ProfileModal({ visible, onClose }: Props) {
                   borderRadius: colors.radius,
                   backgroundColor: colors.primary + "14",
                   borderColor: colors.primary + "55",
+                  marginBottom: 24,
                 },
               ]}
               onPress={handleReplayGuide}
@@ -625,28 +626,28 @@ export function ProfileModal({ visible, onClose }: Props) {
                 {t("helpReplayGuide")}
               </Text>
             </Pressable>
-
-            <Pressable
-              style={[
-                styles.saveBtn,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: colors.radius,
-                  marginTop: 24,
-                },
-              ]}
-              onPress={handleSave}
-            >
-              <Text
-                style={[
-                  styles.saveBtnText,
-                  { color: colors.primaryForeground },
-                ]}
-              >
-                {t("save")}
-              </Text>
-            </Pressable>
           </ScrollView>
+
+          <Pressable
+            style={[
+              styles.saveBtn,
+              {
+                backgroundColor: colors.primary,
+                borderRadius: colors.radius,
+                marginTop: 10,
+              },
+            ]}
+            onPress={handleSave}
+          >
+            <Text
+              style={[
+                styles.saveBtnText,
+                { color: colors.primaryForeground },
+              ]}
+            >
+              {t("save")}
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>

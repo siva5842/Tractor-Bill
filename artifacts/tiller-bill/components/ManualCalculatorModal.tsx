@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
-import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import React, { useState } from "react";
 import {
   Alert,
@@ -131,7 +131,7 @@ export function ManualCalculatorModal({ visible, onClose, onSaveToPending }: Pro
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {}}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -446,19 +446,47 @@ function SaveCalculatedHistoryModal({ visible, amount, onFinish, onClose }: Save
   const [mobileNumber, setMobileNumber] = useState("");
   const [profilePic, setProfilePic] = useState<string | undefined>(undefined);
 
-  const pickProfilePic = async () => {
+  const pickFromGallery = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "image/*",
-        copyToCacheDirectory: true,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
       });
-
       if (!result.canceled && result.assets[0]) {
         setProfilePic(result.assets[0].uri);
       }
     } catch (e) {
-      console.error("Document picker error:", e);
+      console.error("Image picker error:", e);
     }
+  };
+
+  const pickFromCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("cameraPermission") || "Camera Permission", t("allowCamera") || "Please allow camera access to take photos.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Camera error:", e);
+    }
+  };
+
+  const pickProfilePic = () => {
+    Alert.alert(t("choosePhoto") || "Choose Photo", t("selectSource") || "Select source", [
+      { text: t("camera") || "Camera", onPress: pickFromCamera },
+      { text: t("gallery") || "Gallery", onPress: pickFromGallery },
+      { text: t("cancel") || "Cancel", style: "cancel" },
+    ]);
   };
 
   const pickContact = async () => {
@@ -499,78 +527,83 @@ function SaveCalculatedHistoryModal({ visible, amount, onFinish, onClose }: Save
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24, alignItems: "center" }]}>
-          <Text style={[styles.title, { color: colors.foreground, marginBottom: 10 }]}>{t("customerDetails")}</Text>
-          <Text style={[styles.resultValue, { color: colors.primary, fontSize: 24, marginBottom: 10 }]}>₹{amount.toFixed(2)}</Text>
-          
-          <View style={styles.photoSection}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => {}}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}>
+          <View style={[styles.sheet, { backgroundColor: colors.card, borderRadius: 24, alignItems: "center" }]}>
+            <Text style={[styles.title, { color: colors.foreground, marginBottom: 10 }]}>{t("customerDetails")}</Text>
+            <Text style={[styles.resultValue, { color: colors.primary, fontSize: 24, marginBottom: 10 }]}>₹{amount.toFixed(2)}</Text>
+            
+            <View style={styles.photoSection}>
+              <Pressable
+                onPress={pickProfilePic}
+                style={[
+                  styles.photoBtn,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {profilePic ? (
+                  <Image
+                    source={{ uri: profilePic }}
+                    style={styles.profilePic}
+                  />
+                ) : (
+                  <MaterialIcons
+                    name="add-a-photo"
+                    size={32}
+                    color={colors.primary}
+                  />
+                )}
+              </Pressable>
+              <Text
+                style={[styles.photoLabel, { color: colors.mutedForeground }]}
+              >
+                {profilePic ? t("changePhoto") : t("addPhoto")}
+              </Text>
+            </View>
+
             <Pressable
-              onPress={pickProfilePic}
-              style={[
-                styles.photoBtn,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                },
-              ]}
+              style={[styles.contactPickBtn, { backgroundColor: colors.secondary, borderRadius: colors.radius, width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, marginBottom: 15 }]}
+              onPress={pickContact}
             >
-              {profilePic ? (
-                <Image
-                  source={{ uri: profilePic }}
-                  style={styles.profilePic}
-                />
-              ) : (
-                <MaterialIcons
-                  name="add-a-photo"
-                  size={32}
-                  color={colors.primary}
-                />
-              )}
+              <MaterialIcons name="contacts" size={20} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontWeight: "700" }}>{t("pickFromContacts")}</Text>
             </Pressable>
-            <Text
-              style={[styles.photoLabel, { color: colors.mutedForeground }]}
+
+            <TextInput
+              style={[styles.input, { width: "100%", borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+              value={contactName}
+              onChangeText={setContactName}
+              placeholder={t("contactName")}
+              placeholderTextColor={colors.mutedForeground}
+            />
+            <TextInput
+              style={[styles.input, { width: "100%", borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+              value={mobileNumber}
+              onChangeText={setMobileNumber}
+              placeholder={t("mobileNumber")}
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="phone-pad"
+            />
+
+            <Pressable
+              style={[styles.calcBtn, { width: "100%", backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              onPress={handleFinish}
             >
-              {profilePic ? t("changePhoto") : t("addPhoto")}
-            </Text>
+              <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text>
+            </Pressable>
+            <Pressable onPress={onClose} style={{ marginTop: 10 }}>
+              <Text style={{ color: colors.mutedForeground }}>{t("cancel")}</Text>
+            </Pressable>
           </View>
-
-          <Pressable
-            style={[styles.contactPickBtn, { backgroundColor: colors.secondary, borderRadius: colors.radius, width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, marginBottom: 15 }]}
-            onPress={pickContact}
-          >
-            <MaterialIcons name="contacts" size={20} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontWeight: "700" }}>{t("pickFromContacts")}</Text>
-          </Pressable>
-
-          <TextInput
-            style={[styles.input, { width: "100%", borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
-            value={contactName}
-            onChangeText={setContactName}
-            placeholder={t("contactName")}
-            placeholderTextColor={colors.mutedForeground}
-          />
-          <TextInput
-            style={[styles.input, { width: "100%", borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
-            value={mobileNumber}
-            onChangeText={setMobileNumber}
-            placeholder={t("mobileNumber")}
-            placeholderTextColor={colors.mutedForeground}
-            keyboardType="phone-pad"
-          />
-
-          <Pressable
-            style={[styles.calcBtn, { width: "100%", backgroundColor: colors.primary, borderRadius: colors.radius }]}
-            onPress={handleFinish}
-          >
-            <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>{t("save")}</Text>
-          </Pressable>
-          <Pressable onPress={onClose} style={{ marginTop: 10 }}>
-            <Text style={{ color: colors.mutedForeground }}>{t("cancel")}</Text>
-          </Pressable>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

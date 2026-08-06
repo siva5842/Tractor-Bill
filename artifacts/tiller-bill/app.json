@@ -63,6 +63,16 @@
           "color": "#2E7D32",
           "sounds": []
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": ["file:../node_modules/@notifee/react-native/android/libs"],
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
+        }
       ]
     ],
     "experiments": {

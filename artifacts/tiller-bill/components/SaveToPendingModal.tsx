@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as Haptics from "expo-haptics";
-import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -132,19 +132,47 @@ export function SaveToPendingModal({
     }
   }, [visible]);
 
-  const pickProfilePic = async () => {
+  const pickFromGallery = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "image/*",
-        copyToCacheDirectory: true,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
       });
-
       if (!result.canceled && result.assets[0]) {
         setProfilePic(result.assets[0].uri);
       }
     } catch (e) {
-      console.error("Document picker error:", e);
+      console.error("Image picker error:", e);
     }
+  };
+
+  const pickFromCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("cameraPermission") || "Camera Permission", t("allowCamera") || "Please allow camera access to take photos.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setProfilePic(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Camera error:", e);
+    }
+  };
+
+  const pickProfilePic = () => {
+    Alert.alert(t("choosePhoto") || "Choose Photo", t("selectSource") || "Select source", [
+      { text: t("camera") || "Camera", onPress: pickFromCamera },
+      { text: t("gallery") || "Gallery", onPress: pickFromGallery },
+      { text: t("cancel") || "Cancel", style: "cancel" },
+    ]);
   };
 
   const pickContact = async () => {

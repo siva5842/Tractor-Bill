@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import React, { useState, useEffect } from "react";
 import {
   Alert,
@@ -45,28 +45,45 @@ export function AddEquipmentModal({ visible, onClose, editEquipment }: Props) {
 
   const pickFromGallery = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "image/*",
-        copyToCacheDirectory: true,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
       });
       if (!result.canceled && result.assets[0]) {
         setPhotoUri(result.assets[0].uri);
       }
     } catch (e) {
-      console.error("Document picker error:", e);
+      console.error("Image picker error:", e);
     }
   };
 
   const pickFromCamera = async () => {
-    // Note: DocumentPicker doesn't support camera directly.
-    // If the user strictly wants Camera, we would need expo-image-picker.
-    // But the directive says "Use expo-document-picker for all image-related tasks".
-    // On Android, DocumentPicker includes a camera option in the sidebar.
-    pickFromGallery();
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("cameraPermission") || "Camera Permission", t("allowCamera") || "Please allow camera access to take photos.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error("Camera error:", e);
+    }
   };
 
   const showImagePicker = () => {
-    pickFromGallery();
+    Alert.alert(t("choosePhoto") || "Choose Photo", t("selectSource") || "Select source", [
+      { text: t("camera") || "Camera", onPress: pickFromCamera },
+      { text: t("gallery") || "Gallery", onPress: pickFromGallery },
+      { text: t("cancel") || "Cancel", style: "cancel" },
+    ]);
   };
 
   const handleSave = () => {

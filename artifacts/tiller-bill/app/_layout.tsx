@@ -1,50 +1,3 @@
-import notifee, { EventType } from "@notifee/react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-notifee.registerForegroundService((notification) => {
-  return new Promise(() => {
-    // Keep service alive until stopForegroundService is called
-  });
-});
-
-notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type === EventType.ACTION_PRESS) {
-    if (detail.pressAction?.id === "pause_timer" || detail.pressAction?.id === "resume_timer" || detail.pressAction?.id === "stop_timer") {
-      // Background logic
-    }
-  } else if (type === EventType.DISMISSED) {
-    const notification = detail.notification;
-    if (notification?.id?.startsWith("timer-")) {
-      const equipmentId = notification.id.replace("timer-", "");
-      
-      // Task 3: Restore Running Timer Anti-Swipe (Respawn)
-      try {
-        const atStr = await AsyncStorage.getItem("@tiller_timers");
-        if (atStr) {
-          const timers = JSON.parse(atStr);
-          const timer = timers[equipmentId];
-          
-          if (timer && timer.status === "running") {
-            if (notification.android) {
-              await notifee.displayNotification({
-                ...notification,
-                android: {
-                  ...notification.android,
-                  ongoing: true, // Re-enforce
-                  groupId: `group-${equipmentId}`, // Keep unique group
-                  groupSummary: false,
-                }
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Background dismiss error:", err);
-      }
-    }
-  }
-});
-
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -85,36 +38,6 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { hasSeenOnboarding, setHasSeenOnboarding, onboardingReady } = useApp();
-  const { activeTimers, pauseTimer, resumeTimer, stopTimer, equipment } = useData();
-
-  useEffect(() => {
-    return notifee.onForegroundEvent(({ type, detail }) => {
-      if (type === EventType.ACTION_PRESS) {
-        const actionId = detail.pressAction?.id || "";
-        
-        if (actionId.startsWith("pause_timer_")) {
-          const equipmentId = actionId.replace("pause_timer_", "");
-          pauseTimer(equipmentId);
-        } else if (actionId.startsWith("resume_timer_")) {
-          const equipmentId = actionId.replace("resume_timer_", "");
-          resumeTimer(equipmentId);
-        } else if (actionId.startsWith("stop_timer_")) {
-          const equipmentId = actionId.replace("stop_timer_", "");
-          stopTimer(equipmentId);
-          // The app is launched into foreground via launchActivity: 'default'
-        } else if (actionId === "pause_timer") {
-          const running = Object.values(activeTimers).find(t => t.status === "running");
-          if (running) pauseTimer(running.equipmentId);
-        } else if (actionId === "resume_timer") {
-          const paused = Object.values(activeTimers).find(t => t.status === "paused");
-          if (paused) resumeTimer(paused.equipmentId);
-        } else if (actionId === "stop_timer") {
-          const running = Object.values(activeTimers).find(t => t.status === "running");
-          if (running) stopTimer(running.equipmentId);
-        }
-      }
-    });
-  }, [activeTimers, pauseTimer, resumeTimer, stopTimer]);
 
   const handleOnboardingDone = async () => {
     await setHasSeenOnboarding(true);
